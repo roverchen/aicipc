@@ -21,6 +21,7 @@ wheels/
 .installed.cfg
 *.egg
 aicpic.db
+aicipc.db
 
 # Node
 node_modules/
