@@ -25,6 +25,9 @@ function App() {
   const [agents, setAgents] = useState<Record<string, Agent>>({});
   const [tasks, setTasks] = useState<Record<string, TaskStatus>>({});
   const [notification, setNotification] = useState<string | null>(null);
+  const [selectedRack, setSelectedRack] = useState<string | null>(null);
+  const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
+  const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     if (notification) {
@@ -32,6 +35,43 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [notification]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const resp = await axios.get(`${API_BASE}/agents`);
+        const agentMap: Record<string, Agent> = {};
+        resp.data.forEach((a: any) => {
+           agentMap[a.rack_id] = {
+             rack_id: a.rack_id,
+             status: a.status,
+             last_seen: a.last_seen,
+             info: a.metadata_json
+           };
+        });
+        setAgents(agentMap);
+      } catch (err) {
+        console.error("Failed to fetch agents", err);
+      }
+    };
+    fetchData();
+
+    ws.current = new WebSocket(WS_URL);
+    ws.current.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'init') {
+        setAgents(msg.agents);
+        setTasks(msg.tasks);
+      } else if (msg.type === 'task_update') {
+        const update = msg.data;
+        setTasks(prev => ({ ...prev, [update.task_id]: update }));
+      } else {
+        fetchData();
+      }
+    };
+
+    return () => ws.current?.close();
+  }, []);
 
   const handleLaunchTask = async (action: string) => {
     if (!selectedRack) return;
