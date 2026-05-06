@@ -7,7 +7,7 @@ from src.common.schema import RegisterRequest, HeartbeatRequest, TaskRequest, Ta
 from src.rack_manager.task_handler import TaskHandler
 
 CONTROL_PLANE_URL = "http://localhost:8000"
-API_KEY = "aicpic-secret-2026"
+API_KEY = "aicipc-secret-2026"
 
 class RackManagerAgent:
     def __init__(self, rack_id: str):

@@ -1,6 +1,6 @@
-# 工業電腦自動化測試系統 (AICPIC - Automated Industrial Computer Platform Integration Control)
+# 工業電腦自動化測試系統 (Automated Industrial Computer Platform Integration Control)
 
-[![Project Status: Active](https://img.shields.io/badge/Project%20Status-Active-brightgreen.svg)](https://github.com/roverchen/aicpic)
+[![Project Status: Active](https://img.shields.io/badge/Project%20Status-Active-brightgreen.svg)](https://github.com/roverchen/aicipc)
 [![Target Go-Live](https://img.shields.io/badge/Target%20Go--Live-2026--07-blue.svg)](#)
 
 ## 專案概述 | Project Overview
@@ -101,7 +101,7 @@ python3 -m src.control_plane.cli deploy RACK-XXX --action OS_INSTALL
 docker-compose up --build
 ```
 *   **控制平面**: 存取 `http://localhost:8000` 即可看到整合後的儀表板。
-*   **持久化**: 資料庫檔案 `aicpic.db` 會掛載於主機，確保數據在容器重啟後保留。
+*   **持久化**: 資料庫檔案 `aicipc.db` 會掛載於主機，確保數據在容器重啟後保留。
 *   **安全性**: 系統通訊受 `X-API-KEY` 保護。
 
 ---
@@ -109,7 +109,7 @@ docker-compose up --build
 ## 專案結構 | Project Structure
 
 ```text
-aicpic/
+aicipc/
 ├── src/
 │   ├── common/           # 共用模型、Schema 與資料庫 (SQLite)
 │   ├── control_plane/    # 中央控制伺服器 (FastAPI)

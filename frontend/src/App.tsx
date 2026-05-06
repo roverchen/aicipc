@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const API_BASE = "http://localhost:8000/api/v1";
 const WS_URL = "ws://localhost:8000/ws/events";
-const API_KEY = "aicpic-secret-2026";
+const API_KEY = "aicipc-secret-2026";
 
 interface Agent {
   rack_id: string;
@@ -87,7 +87,7 @@ function App() {
   return (
     <div className="dashboard-container">
       <header>
-        <div className="logo">AICPIC CONTROLLER</div>
+        <div className="logo">AICIPC CONTROLLER</div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <div className="metric-row" style={{ color: 'var(--success)' }}>
             <Activity size={16} />

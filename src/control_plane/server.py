@@ -15,7 +15,7 @@ from src.common.database import init_db, SessionLocal, AgentModel, TaskModel
 import uuid
 
 # Security Configuration
-API_KEY = "aicpic-secret-2026"
+API_KEY = "aicipc-secret-2026"
 
 # WebSocket connections
 active_connections: List[WebSocket] = []
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(monitor_agents())
     yield
 
-app = FastAPI(title="AICPIC Control Plane", lifespan=lifespan)
+app = FastAPI(title="AICIPC Control Plane", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

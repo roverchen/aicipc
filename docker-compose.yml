@@ -6,9 +6,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./aicpic.db:/app/aicpic.db
+      - ./aicipc.db:/app/aicipc.db
     environment:
-      - API_KEY=aicpic-secret-2026
+      - API_KEY=aicipc-secret-2026
 
   rack-manager-1:
     build: .

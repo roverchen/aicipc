@@ -6,10 +6,10 @@ from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
-app = typer.Typer(help="AICPIC Command Line Interface")
+app = typer.Typer(help="AICIPC Command Line Interface")
 console = Console()
 API_BASE = "http://localhost:8000/api/v1"
-API_KEY = "aicpic-secret-2026"
+API_KEY = "aicipc-secret-2026"
 HEADERS = {"X-API-KEY": API_KEY}
 
 @app.command()
