@@ -24,46 +24,14 @@ interface TaskStatus {
 function App() {
   const [agents, setAgents] = useState<Record<string, Agent>>({});
   const [tasks, setTasks] = useState<Record<string, TaskStatus>>({});
-  const [selectedRack, setSelectedRack] = useState<string | null>(null);
-  const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
-  const ws = useRef<WebSocket | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const resp = await axios.get(`${API_BASE}/agents`);
-        const agentMap: Record<string, Agent> = {};
-        resp.data.forEach((a: any) => {
-           agentMap[a.rack_id] = {
-             rack_id: a.rack_id,
-             status: a.status,
-             last_seen: a.last_seen,
-             info: a.metadata_json
-           };
-        });
-        setAgents(agentMap);
-      } catch (err) {
-        console.error("Failed to fetch agents", err);
-      }
-    };
-    fetchData();
-
-    ws.current = new WebSocket(WS_URL);
-    ws.current.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'init') {
-        setAgents(msg.agents);
-        setTasks(msg.tasks);
-      } else if (msg.type === 'task_update') {
-        const update = msg.data;
-        setTasks(prev => ({ ...prev, [update.task_id]: update }));
-      } else {
-        fetchData();
-      }
-    };
-
-    return () => ws.current?.close();
-  }, []);
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const handleLaunchTask = async (action: string) => {
     if (!selectedRack) return;
@@ -78,23 +46,33 @@ function App() {
       }, {
         headers: { "X-API-KEY": API_KEY }
       });
-      setIsTaskPanelOpen(false);
+      // Keep panel open to see progress
     } catch (err) {
       alert("Failed to launch task");
     }
   };
 
+  useEffect(() => {
+    // Monitor for task completion to show notification
+    const taskList = Object.values(tasks);
+    const lastTask = taskList[taskList.length - 1];
+    if (lastTask?.status === 'SUCCESS') {
+      setNotification(`Task ${lastTask.task_id} completed successfully!`);
+    }
+  }, [tasks]);
+
   return (
     <div className="dashboard-container">
+      {notification && <div className="notification">{notification}</div>}
       <header>
         <div className="logo">AICIPC CONTROLLER</div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div className="metric-row" style={{ color: 'var(--success)' }}>
-            <Activity size={16} />
-            <span style={{ marginLeft: '0.5rem' }}>System Healthy</span>
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+          <div className="metric-row" style={{ color: 'var(--success)', marginTop: 0 }}>
+            <Activity size={18} />
+            <span style={{ marginLeft: '0.5rem', fontWeight: 600 }}>System Ready</span>
           </div>
-          <div className="metric-row">
-            <Server size={16} />
+          <div className="metric-row" style={{ marginTop: 0 }}>
+            <Server size={18} />
             <span style={{ marginLeft: '0.5rem' }}>{Object.keys(agents).length} Racks Active</span>
           </div>
         </div>
@@ -118,15 +96,15 @@ function App() {
             </div>
             
             <div className="metric-row">
-              <span>System Load</span>
-              <span style={{ color: (agent.info?.load || 0) > 80 ? 'var(--accent)' : 'var(--success)' }}>
+              <span>Power Load</span>
+              <span style={{ color: (agent.info?.load || 0) > 80 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
                 {Math.round(agent.info?.load || 0)}%
               </span>
             </div>
 
             <div className="metric-row">
-              <span>DUT Capacity</span>
-              <span>{agent.info?.dut_count || 10} Units</span>
+              <span>DUT Topology</span>
+              <span>{agent.info?.dut_count || 10} Nodes</span>
             </div>
             
             <div className="dut-grid">
@@ -139,53 +117,63 @@ function App() {
               })}
             </div>
 
-            <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Last Seen: {new Date(agent.last_seen).toLocaleTimeString()}
+            <div style={{ marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+              Uptime: {new Date(agent.last_seen).toLocaleTimeString()}
             </div>
           </div>
         ))}
 
         {Object.keys(agents).length === 0 && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
-            <Server size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
-            <p>No active Rack Managers detected.</p>
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '6rem', background: 'rgba(0,0,0,0.1)', borderRadius: '1rem' }}>
+            <Server size={64} style={{ marginBottom: '1.5rem', opacity: 0.2 }} />
+            <p style={{ color: 'var(--text-muted)' }}>Searching for Rack Manager Agents...</p>
           </div>
         )}
       </main>
 
       <div className={`task-panel ${isTaskPanelOpen ? 'open' : ''}`}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-          <h2>Rack Control</h2>
-          <button onClick={() => setIsTaskPanelOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>✕</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+          <h2 style={{ fontSize: '1.5rem' }}>Rack Control</h2>
+          <button onClick={() => setIsTaskPanelOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
 
-        <h3 style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>Target: {selectedRack}</h3>
+        <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '0.5rem', marginBottom: '2rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Active Target</span>
+          <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{selectedRack}</div>
+        </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <button className="btn btn-primary" onClick={() => handleLaunchTask('OS_INSTALL')}>
-            <Cpu size={18} style={{ marginRight: '0.5rem' }} /> Deploy OS
+            <Cpu size={18} /> Deploy OS
           </button>
           <button className="btn btn-primary" onClick={() => handleLaunchTask('FW_UPDATE')}>
-            <Play size={18} style={{ marginRight: '0.5rem' }} /> Update Firmware
+            <Play size={18} /> Update Firmware
           </button>
           <button className="btn btn-primary" onClick={() => handleLaunchTask('BURN_IN')}>
-            <Activity size={18} style={{ marginRight: '0.5rem' }} /> Start Burn-in
+            <Activity size={18} /> Start Burn-in
           </button>
         </div>
 
-        <div style={{ marginTop: '3rem' }}>
-          <h3>Recent Tasks</h3>
-          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {Object.values(tasks).filter(t => t.rack_id === selectedRack).slice(-5).reverse().map(task => (
-              <div key={task.task_id} style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <span style={{ fontWeight: 600 }}>{task.task_id}</span>
-                  <span style={{ color: task.status === 'SUCCESS' ? 'var(--success)' : 'var(--accent)' }}>{task.status}</span>
+        <div style={{ marginTop: '3.5rem' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Task Monitor</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {Object.values(tasks).filter(t => t.rack_id === selectedRack).slice(-3).reverse().map(task => (
+              <div key={task.task_id} style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{task.task_id}</span>
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: 800,
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '4px',
+                    background: task.status === 'SUCCESS' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                    color: task.status === 'SUCCESS' ? 'var(--success)' : 'var(--accent)' 
+                  }}>{task.status}</span>
                 </div>
-                <div style={{ height: '4px', background: '#334155', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ width: `${task.progress}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.3s' }} />
+                <div className="task-progress-bar">
+                  <div className="task-progress-inner" style={{ width: `${task.progress}%` }} />
                 </div>
-                <div style={{ marginTop: '0.5rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                <div style={{ marginTop: '0.75rem', color: 'var(--text-main)', fontSize: '0.8rem', opacity: 0.9 }}>
                   {task.message}
                 </div>
               </div>

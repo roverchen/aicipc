@@ -64,12 +64,29 @@ class TaskHandler:
 
     async def _handle_os_install(self, task: TaskRequest, update_callback):
         print(f"[Task] Starting OS Install for {task.dut_id}")
-        await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.RUNNING, progress=10, message="Setting PXE boot..."))
-        await asyncio.sleep(2)
+        steps = [
+            (10, "Setting PXE boot flags..."),
+            (30, "Requesting IP from DHCP..."),
+            (50, "Downloading OS image (Ubuntu 22.04)..."),
+            (70, "Formatting disk and installing..."),
+            (90, "Configuring post-install scripts...")
+        ]
+        for progress, message in steps:
+            await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.RUNNING, progress=progress, message=message))
+            await asyncio.sleep(1.5)
+        
         await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.SUCCESS, progress=100, message="OS Installation Complete"))
 
     async def _handle_fw_update(self, task: TaskRequest, update_callback):
         print(f"[Task] Starting FW Update for {task.dut_id}")
-        await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.RUNNING, progress=10, message="Uploading binary..."))
-        await asyncio.sleep(2)
+        steps = [
+            (10, "Validating binary signature..."),
+            (40, "Uploading firmware to BMC cache..."),
+            (60, "Writing to SPI flash..."),
+            (85, "Verifying checksum..."),
+        ]
+        for progress, message in steps:
+            await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.RUNNING, progress=progress, message=message))
+            await asyncio.sleep(2.0)
+            
         await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.SUCCESS, progress=100, message="Firmware Update Success"))
