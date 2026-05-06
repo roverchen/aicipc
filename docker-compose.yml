@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  control-plane:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./aicpic.db:/app/aicpic.db
+    environment:
+      - API_KEY=aicpic-secret-2026
+
+  rack-manager-1:
+    build: .
+    command: ["python", "-m", "src.rack_manager.agent"]
+    environment:
+      - RACK_ID=RACK-001
+    depends_on:
+      - control-plane
+
+  rack-manager-2:
+    build: .
+    command: ["python", "-m", "src.rack_manager.agent"]
+    environment:
+      - RACK_ID=RACK-002
+    depends_on:
+      - control-plane
+
+  rack-manager-3:
+    build: .
+    command: ["python", "-m", "src.rack_manager.agent"]
+    environment:
+      - RACK_ID=RACK-003
+    depends_on:
+      - control-plane
