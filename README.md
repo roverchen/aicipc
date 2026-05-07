@@ -34,14 +34,16 @@
 
 ---
 
-## 快速開始 | Quick Start (Prototype Phase 1)
+## 快速開始與開發階段 | Getting Started & Development Phases
 
-### 依賴安裝
+### Phase 1: 基礎環境與服務啟動
+本階段涵蓋基礎依賴安裝與核心服務的模擬運行。
+#### 1. 依賴安裝
 ```bash
 pip install fastapi uvicorn httpx pydantic
 ```
 
-### 啟動服務
+#### 2. 啟動服務
 1. **啟動控制平面 (Server)**:
    ```bash
    python3 -m src.control_plane.server
@@ -51,17 +53,18 @@ pip install fastapi uvicorn httpx pydantic
    python3 -m src.rack_manager.agent
    ```
 
-### 任務測試 (Phase 2)
-在啟動 Server 與 Agent 後，可使用測試腳本下發任務：
+### Phase 2: 基礎任務下發測試
+在啟動 Server 與 Agent 後，可使用測試腳本模擬下發單一任務（OS 安裝或韌體更新）：
 ```bash
 # 下發 OS 安裝任務 (請根據 Agent 日誌更換 RACK_ID)
 python3 -m src.rack_manager.test_task RACK-XXX DUT-01 OS_INSTALL
 
 # 下發韌體更新任務
 python3 -m src.rack_manager.test_task RACK-XXX DUT-02 FW_UPDATE
+```
 
-### 測試引擎驗證 (Phase 3)
-可以模擬功能測試與帶有熱保護機制的燒機測試：
+### Phase 3: 測試引擎與熱保護驗證
+測試引擎負責執行更複雜的邏輯，包含多步驟的功能測試與具備「自動溫控中斷」機制的燒機測試：
 ```bash
 # 執行功能測試套件 (CPU, Memory, Network, BMC)
 python3 -m src.rack_manager.test_task RACK-XXX DUT-01 FUNCTION_TEST
@@ -72,9 +75,9 @@ python3 -m src.rack_manager.test_task RACK-XXX DUT-02 BURN_IN
 # 模擬高溫自動中止 (熱保護機制驗證)
 python3 -m src.rack_manager.test_task RACK-XXX DUT-03 BURN_IN --overheat
 ```
-```
 
-### 介面與批次操作 (Phase 4)
+### Phase 4: 視覺化介面與批次操作工具
+本階段提供 Web Dashboard 進行即時監控，以及 CLI 工具進行大規模批次操作。
 #### 網頁 Dashboard
 1. 進入 `frontend` 目錄並啟動開發伺服器：
    ```bash
@@ -93,8 +96,8 @@ python3 -m src.control_plane.cli list-agents
 python3 -m src.control_plane.cli deploy RACK-XXX --action OS_INSTALL
 ```
 
-### 生產環境部署 (Phase 5)
-系統已支援資料庫持久化與 Docker 容器化部署。
+### Phase 5: 生產環境 Docker 部署
+系統已完整支援資料庫持久化與 Docker 容器化部署，適合正式上線環境。
 #### 使用 Docker Compose 啟動全系統
 ```bash
 # 構建並啟動控制平面與 3 組模擬 Agent
@@ -132,7 +135,7 @@ aicipc/
 
 ---
 
-## 開發技術棧 | Tech Stack (Planned)
+## 系統技術棧 | Tech Stack
 
 *   **後端服務**: Python / Go (適合處理大量並發 I/O 與 BMC 通訊)
 *   **通訊協定**: IPMI 2.0, Redfish, PXE, WebSocket (即時狀態推送)
