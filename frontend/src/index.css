@@ -95,31 +95,51 @@ header {
 .status-degraded { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
 
 .dut-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.5rem;
-  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 1.25rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
 }
 
 .dut-dot {
   width: 100%;
-  aspect-ratio: 1;
-  border-radius: 4px;
-  background: #334155;
+  height: 14px;
+  border-radius: 2px;
+  background: #1e293b;
   position: relative;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.dut-dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #334155;
+  transition: all 0.3s ease;
 }
 
 .dut-dot:hover {
-  filter: brightness(1.2);
-  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(2px);
 }
 
-.dut-dot.idle { background: #334155; }
-.dut-dot.testing { 
+.dut-dot.idle::before { background: #334155; }
+.dut-dot.testing {
+  background: rgba(59, 130, 246, 0.05);
+}
+.dut-dot.testing::before { 
   background: var(--accent); 
-  box-shadow: 0 0 10px var(--accent-glow); 
+  box-shadow: 0 0 10px var(--accent); 
   animation: pulse 1.5s infinite ease-in-out;
 }
 

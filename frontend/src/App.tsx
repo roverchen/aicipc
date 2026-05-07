@@ -155,7 +155,9 @@ function App() {
                 const dutId = `DUT-${(i+1).toString().padStart(2, '0')}`;
                 const status = agent.info?.dut_summary?.[dutId] || 'IDLE';
                 return (
-                  <div key={i} className={`dut-dot ${status.toLowerCase()}`} title={`${dutId}: ${status}`} />
+                  <div key={i} className={`dut-dot ${status.toLowerCase()}`} title={`${dutId}: ${status}`}>
+                    <span style={{ fontSize: '0.65rem', marginLeft: '8px', color: 'var(--text-muted)', fontWeight: 600 }}>{dutId}</span>
+                  </div>
                 );
               })}
             </div>
