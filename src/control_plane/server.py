@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Generator
 from contextlib import asynccontextmanager
 from src.common.schema import (
     AgentStatus, TelemetryData, TaskRequest, TaskUpdate, TaskStatus,
-    DecisionRequest, DecisionType
+    DecisionRequest, DecisionType, CommonResponse, RegisterRequest, HeartbeatRequest
 )
 from src.common.database import init_db, SessionLocal, AgentModel, TaskModel
 import uuid
@@ -92,7 +92,7 @@ async def register_agent(req: RegisterRequest, x_api_key: str = Header(...), db:
     agent.ip_address = req.ip_address
     agent.dut_count = req.dut_count
     agent.status = AgentStatus.ONLINE
-    agent.metadata_json = req.dict()
+    agent.metadata_json = req.model_dump()
     db.commit()
     
     print(f"[*] Agent registered: {req.rack_id}")
@@ -128,7 +128,7 @@ async def receive_heartbeat(req: HeartbeatRequest, x_api_key: str = Header(...),
             dut_id=t.dut_id, 
             action=t.action, 
             params=t.params
-        ).dict() for t in pending_tasks
+        ).model_dump() for t in pending_tasks
     ]
     
     db.commit()
@@ -171,7 +171,7 @@ async def update_task_status(update: TaskUpdate, x_api_key: str = Header(...), d
     db.commit()
     
     # Broadcast to dashboard
-    await broadcast_json({"type": "task_update", "data": update.dict()})
+    await broadcast_json({"type": "task_update", "data": update.model_dump()})
 
     # Send notifications on completion or failure
     if update.status == TaskStatus.SUCCESS:

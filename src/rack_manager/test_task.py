@@ -26,7 +26,7 @@ async def submit_and_monitor(rack_id: str, dut_id: str, action: TaskAction):
         print(f"[*] Submitting {action} for {rack_id}/{dut_id}...")
         resp = await client.post(
             f"{CONTROL_PLANE_URL}/api/v1/tasks", 
-            content=req.json(), 
+            content=req.model_dump_json(), 
             headers={"Content-Type": "application/json", "X-API-KEY": API_KEY}
         )
         resp.raise_for_status()

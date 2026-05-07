@@ -4,7 +4,7 @@ import socket
 import uuid
 import random
 import os
-import os
+from typing import Optional
 from src.common.schema import (
     RegisterRequest, HeartbeatRequest, TaskRequest, TaskUpdate, 
     TaskStatus, DUTStatus, DecisionType
@@ -43,7 +43,7 @@ class RackManagerAgent:
         )
         async with httpx.AsyncClient() as client:
             try:
-                resp = await client.post(f"{CONTROL_PLANE_URL}/api/v1/register", content=req.json(), headers=self.headers)
+                resp = await client.post(f"{CONTROL_PLANE_URL}/api/v1/register", content=req.model_dump_json(), headers=self.headers)
                 print(f"[*] Registered successfully: {resp.json()}")
             except Exception as e:
                 print(f"[!] Registration failed: {e}")
@@ -60,7 +60,7 @@ class RackManagerAgent:
         )
         async with httpx.AsyncClient() as client:
             try:
-                resp = await client.post(f"{CONTROL_PLANE_URL}/api/v1/heartbeat", content=req.json(), headers=self.headers)
+                resp = await client.post(f"{CONTROL_PLANE_URL}/api/v1/heartbeat", content=req.model_dump_json(), headers=self.headers)
                 data = resp.json()
                 if data["success"] and "pending_tasks" in data["data"]:
                     for task_data in data["data"]["pending_tasks"]:
@@ -91,7 +91,7 @@ class RackManagerAgent:
             logger.log(update.task_id, update.message)
             async with httpx.AsyncClient() as client:
                 try:
-                    await client.post(f"{CONTROL_PLANE_URL}/api/v1/tasks/update", content=update.json(), headers=self.headers)
+                    await client.post(f"{CONTROL_PLANE_URL}/api/v1/tasks/update", content=update.model_dump_json(), headers=self.headers)
                 except Exception as e:
                     print(f"[!] Task update failed: {e}")
 
