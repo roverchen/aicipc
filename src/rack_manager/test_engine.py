@@ -68,9 +68,8 @@ class FunctionTestRunner:
         config = load_test_config(model)
         sub_tests = config.get("function_test", [])
         
-        i = 0
-        while i < len(sub_tests):
-            step = sub_tests[i]
+        test_results = []
+        for step in sub_tests:
             name = step.get("name", "Unknown")
             progress = step.get("progress", 0)
             
@@ -84,47 +83,34 @@ class FunctionTestRunner:
             
             # Simulate random failure
             if random.random() < 0.15: # Demo failure rate
+                test_results.append({"name": name, "status": "FAIL"})
                 await update_callback(TaskUpdate(
                     task_id=task.task_id,
-                    status=TaskStatus.WAITING_DECISION,
+                    status=TaskStatus.RUNNING,
                     progress=progress,
-                    message=f"Sub-test {name} FAILED! Waiting for operator decision..."
+                    message=f"Sub-test {name} FAILED! Auto-skipping to next item..."
                 ))
-                
-                decision = await wait_for_decision(task.task_id)
-                
-                if decision == "RETRY":
-                    await update_callback(TaskUpdate(
-                        task_id=task.task_id,
-                        status=TaskStatus.RUNNING,
-                        progress=progress,
-                        message=f"Retrying sub-test: {name}..."
-                    ))
-                    continue # Repeat the same step
-                elif decision == "SKIP":
-                    await update_callback(TaskUpdate(
-                        task_id=task.task_id,
-                        status=TaskStatus.RUNNING,
-                        progress=progress,
-                        message=f"Skipping failed sub-test: {name}..."
-                    ))
-                    # Fall through to next step
-                elif decision == "ABORT":
-                    await update_callback(TaskUpdate(
-                        task_id=task.task_id,
-                        status=TaskStatus.FAILED,
-                        progress=progress,
-                        message=f"Task ABORTED by operator at {name}"
-                    ))
-                    return
+            else:
+                test_results.append({"name": name, "status": "PASS"})
             
-            i += 1 # Next step
+            await asyncio.sleep(0.5)
+
+        # Generate summary report
+        passed_count = sum(1 for r in test_results if r["status"] == "PASS")
+        total_count = len(sub_tests)
+        failed_items = [r["name"] for r in test_results if r["status"] == "FAIL"]
+        
+        summary = f"Test Complete. Success: {passed_count}/{total_count}. "
+        if failed_items:
+            summary += f"Failures detected in: {', '.join(failed_items)}."
+        else:
+            summary += "All items PASSED perfectly."
 
         await update_callback(TaskUpdate(
             task_id=task.task_id,
             status=TaskStatus.SUCCESS,
             progress=100,
-            message="All functional tests completed (some steps might have been skipped)"
+            message=summary
         ))
 
 class BurnInRunner:
