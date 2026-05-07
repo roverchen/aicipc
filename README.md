@@ -167,6 +167,22 @@ aicipc/
 
 ---
 
+## 高密度序列通訊管理 | High-Density Serial Management
+
+針對單一 Rack 內多達 10 台 DUT (每台 8 個 COM ports，總計 80 個連接) 的複雜情境，系統採用以下架構進行管理：
+
+1.  **物理層 (Hardware Layer)**:
+    *   使用 **工業級序列伺服器 (Serial-to-Ethernet Server)**，如 Moxa NPort 或 Digi PortServer。
+    *   透過高密度電纜 (RJ45 to DB9/Flat Cable) 將 80 個實體埠匯聚至序列伺服器。
+2.  **傳輸層 (Transport Layer)**:
+    *   將實體序列通訊轉換為 **TCP/IP 串流 (COM-over-IP)**。
+    *   Rack Manager Agent 與序列伺服器透過區域網路連接，免除實體序列卡限制。
+3.  **軟體層 (Software Layer)**:
+    *   **異步並發 (Asynchronous I/O)**: Agent 利用 `asyncio` 維護 80 個並行 Socket 連接，實現低延遲的日誌擷取與指令下發。
+    *   **虛擬埠映射**: 系統自動將 `Device ID + Port Index` 映射至對應的 `IP:Port` 端點。
+
+---
+
 ## 系統技術棧 | Tech Stack
 
 *   **後端服務**: Python / Go (適合處理大量並發 I/O 與 BMC 通訊)
