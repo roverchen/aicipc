@@ -1,7 +1,7 @@
 import asyncio
 import random
 from src.common.schema import TaskRequest, TaskUpdate, TaskStatus, TaskAction
-from src.rack_manager.test_engine import ThermalMonitor, FunctionTestRunner, BurnInRunner
+from src.rack_manager.test_engine import ThermalMonitor, FunctionTestRunner, BurnInRunner, load_test_config
 
 class TaskHandler:
     def __init__(self, agent_id: str, control_plane_url: str):
@@ -36,7 +36,11 @@ class TaskHandler:
             self.active_aborts.pop(task.task_id, None)
 
     async def _handle_burn_in(self, task: TaskRequest, update_callback):
-        thermal_monitor = ThermalMonitor(threshold=95.0, poll_interval=1.0) # Faster poll for prototype
+        model = task.params.get("model")
+        config = load_test_config(model).get("burn_in", {})
+        threshold = config.get("thermal_threshold", 95.0)
+        
+        thermal_monitor = ThermalMonitor(threshold=threshold, poll_interval=1.0) # Faster poll for prototype
         
         async def emergency_stop(temp: float):
             self.active_aborts[task.task_id] = True

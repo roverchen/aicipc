@@ -1,7 +1,9 @@
 import asyncio
 import random
+import json
+import os
 from datetime import datetime, timedelta
-from typing import Callable, Optional
+from typing import Callable, Optional, List, Dict
 from src.common.schema import TaskRequest, TaskUpdate, TaskStatus
 
 class ThermalMonitor:
@@ -39,17 +41,36 @@ class ThermalMonitor:
             
             await asyncio.sleep(self.poll_interval)
 
+def load_test_config(model: Optional[str] = None) -> Dict:
+    """Load test suite configuration based on model name."""
+    config_dir = "configs/test_suites"
+    config_file = f"{model}.json" if model else "default.json"
+    config_path = os.path.join(config_dir, config_file)
+    
+    if not os.path.exists(config_path):
+        # Fallback to default if model config doesn't exist
+        config_path = os.path.join(config_dir, "default.json")
+    
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[Error] Failed to load config {config_path}: {e}")
+        # Return a bare minimum default if file loading fails
+        return {
+            "function_test": [{"name": "Basic_Check", "progress": 50}],
+            "burn_in": {"total_hours": 1, "thermal_threshold": 95.0, "report_interval_seconds": 10}
+        }
+
 class FunctionTestRunner:
     async def run(self, task: TaskRequest, update_callback):
-        sub_tests = [
-            ("CPU_Check", 20),
-            ("Memory_Check", 40),
-            ("Network_Check", 60),
-            ("Disk_IO_Check", 80),
-            ("BMC_Communication", 95)
-        ]
+        model = task.params.get("model")
+        config = load_test_config(model)
+        sub_tests = config.get("function_test", [])
         
-        for name, progress in sub_tests:
+        for step in sub_tests:
+            name = step.get("name", "Unknown")
+            progress = step.get("progress", 0)
             await update_callback(TaskUpdate(
                 task_id=task.task_id,
                 status=TaskStatus.RUNNING,
@@ -77,10 +98,13 @@ class FunctionTestRunner:
 
 class BurnInRunner:
     async def run(self, task: TaskRequest, update_callback, check_abort: Callable[[], bool]):
+        model = task.params.get("model")
+        config = load_test_config(model).get("burn_in", {})
+        
         # Requirement: Report result every 1 hour.
-        # For prototype, we'll speed this up to 30 seconds for "1 hour"
-        HOURLY_INTERVAL = 30 # seconds (for prototype)
-        TOTAL_HOURS = 4
+        # Use config values, with defaults as fallback
+        HOURLY_INTERVAL = config.get("report_interval_seconds", 30)
+        TOTAL_HOURS = config.get("total_hours", 4)
         
         start_time = datetime.utcnow()
         last_report_time = start_time

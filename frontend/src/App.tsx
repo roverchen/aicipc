@@ -26,6 +26,7 @@ function App() {
   const [tasks, setTasks] = useState<Record<string, TaskStatus>>({});
   const [notification, setNotification] = useState<string | null>(null);
   const [selectedRack, setSelectedRack] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>("default");
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const ws = useRef<WebSocket | null>(null);
 
@@ -82,11 +83,13 @@ function App() {
         rack_id: selectedRack,
         dut_id: "DUT-01",
         action: action,
-        params: {}
+        params: {
+          model: selectedModel
+        }
       }, {
         headers: { "X-API-KEY": API_KEY }
       });
-      // Keep panel open to see progress
+      setNotification(`Task ${action} launched for ${selectedRack} (${selectedModel})`);
     } catch (err) {
       alert("Failed to launch task");
     }
@@ -180,6 +183,28 @@ function App() {
         <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '0.5rem', marginBottom: '2rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
           <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Active Target</span>
           <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{selectedRack}</div>
+        </div>
+
+        <div style={{ marginBottom: '2rem' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.5rem' }}>Device Model</label>
+          <select 
+            value={selectedModel} 
+            onChange={(e) => setSelectedModel(e.target.value)}
+            style={{ 
+              width: '100%', 
+              background: 'rgba(15, 23, 42, 0.8)', 
+              border: '1px solid var(--border)', 
+              color: 'white', 
+              padding: '0.75rem', 
+              borderRadius: '0.5rem',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="default">Default Standard</option>
+            <option value="model_pro_server">Pro High-Performance Server</option>
+            <option value="model_edge_ai">Edge AI Gateway (Low Temp)</option>
+          </select>
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

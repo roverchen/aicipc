@@ -1,0 +1,14 @@
+{
+  "function_test": [
+    {"name": "CPU_Initialization", "progress": 20},
+    {"name": "Memory_Address_Check", "progress": 40},
+    {"name": "Network_Interface_Up", "progress": 60},
+    {"name": "Storage_SMART_Check", "progress": 80},
+    {"name": "BMC_Ready_Signal", "progress": 95}
+  ],
+  "burn_in": {
+    "total_hours": 4,
+    "thermal_threshold": 95.0,
+    "report_interval_seconds": 30
+  }
+}

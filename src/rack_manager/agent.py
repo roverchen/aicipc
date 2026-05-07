@@ -5,6 +5,7 @@ import uuid
 import random
 from src.common.schema import RegisterRequest, HeartbeatRequest, TaskRequest, TaskUpdate, TaskStatus, DUTStatus
 from src.rack_manager.task_handler import TaskHandler
+from src.rack_manager.logger import logger
 
 CONTROL_PLANE_URL = "http://localhost:8000"
 API_KEY = "aicipc-secret-2026"
@@ -67,6 +68,7 @@ class RackManagerAgent:
         self.dut_status[task.dut_id] = DUTStatus.TESTING
         
         async def update_status(update: TaskUpdate):
+            logger.log(update.task_id, update.message)
             async with httpx.AsyncClient() as client:
                 try:
                     await client.post(f"{CONTROL_PLANE_URL}/api/v1/tasks/update", content=update.json(), headers=self.headers)

@@ -40,15 +40,25 @@ def list_agents():
         console.print(f"[red]Error:[/red] {e}")
 
 @app.command()
-def deploy(rack_id: str, action: str = "OS_INSTALL", dut_id: str = "DUT-01"):
-    """Deploy a task to a specific Rack/DUT"""
+def deploy(
+    rack_id: str, 
+    action: str = "OS_INSTALL", 
+    dut_id: str = "DUT-01", 
+    model: str = "default",
+    overheat: bool = False
+):
+    """Deploy a task to a specific Rack/DUT with optional model and overheat simulation"""
     task_id = f"cli-{uuid.uuid4().hex[:8]}"
+    params = {"model": model}
+    if overheat:
+        params["simulate_overheat"] = "true"
+        
     payload = {
         "task_id": task_id,
         "rack_id": rack_id,
         "dut_id": dut_id,
         "action": action,
-        "params": {}
+        "params": params
     }
     
     try:
