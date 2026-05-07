@@ -57,10 +57,17 @@ function App() {
         setAgents(agentMap);
       } catch (err) {
         console.error("Failed to fetch agents", err);
+      }
+    };
+
     const fetchModels = async () => {
       try {
         const resp = await axios.get(`${API_BASE}/models`);
-        setAvailableModels(resp.data);
+        const models = resp.data;
+        setAvailableModels(models);
+        if (models.length > 0 && !models.includes("default")) {
+          setSelectedModel(models[0]);
+        }
       } catch (err) {
         console.error("Failed to fetch models", err);
       }
@@ -78,6 +85,11 @@ function App() {
       } else if (msg.type === 'task_update') {
         const update = msg.data;
         setTasks(prev => ({ ...prev, [update.task_id]: update }));
+        if (update.status === 'SUCCESS') {
+          setNotification(`Task ${update.task_id} completed successfully!`);
+        } else if (update.status === 'FAILED') {
+          setNotification(`Task ${update.task_id} failed!`);
+        }
       } else {
         fetchData();
       }
@@ -101,6 +113,7 @@ function App() {
   }, [view, selectedModel]);
 
   const handleSaveModel = async () => {
+    if (!selectedModel) return;
     try {
       const config = JSON.parse(editingModelConfig);
       await axios.post(`${API_BASE}/models/${selectedModel}`, config, {
@@ -147,14 +160,6 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    // Monitor for task completion to show notification
-    const taskList = Object.values(tasks);
-    const lastTask = taskList[taskList.length - 1];
-    if (lastTask?.status === 'SUCCESS') {
-      setNotification(`Task ${lastTask.task_id} completed successfully!`);
-    }
-  }, [tasks]);
 
   return (
     <div className="dashboard-container">
