@@ -63,14 +63,17 @@ def load_test_config(model: Optional[str] = None) -> Dict:
         }
 
 class FunctionTestRunner:
-    async def run(self, task: TaskRequest, update_callback):
+    async def run(self, task: TaskRequest, update_callback, wait_for_decision):
         model = task.params.get("model")
         config = load_test_config(model)
         sub_tests = config.get("function_test", [])
         
-        for step in sub_tests:
+        i = 0
+        while i < len(sub_tests):
+            step = sub_tests[i]
             name = step.get("name", "Unknown")
             progress = step.get("progress", 0)
+            
             await update_callback(TaskUpdate(
                 task_id=task.task_id,
                 status=TaskStatus.RUNNING,
@@ -80,20 +83,48 @@ class FunctionTestRunner:
             await asyncio.sleep(2)
             
             # Simulate random failure
-            if random.random() < 0.05:
+            if random.random() < 0.15: # Demo failure rate
                 await update_callback(TaskUpdate(
                     task_id=task.task_id,
-                    status=TaskStatus.FAILED,
+                    status=TaskStatus.WAITING_DECISION,
                     progress=progress,
-                    message=f"Sub-test {name} FAILED!"
+                    message=f"Sub-test {name} FAILED! Waiting for operator decision..."
                 ))
-                return
+                
+                decision = await wait_for_decision(task.task_id)
+                
+                if decision == "RETRY":
+                    await update_callback(TaskUpdate(
+                        task_id=task.task_id,
+                        status=TaskStatus.RUNNING,
+                        progress=progress,
+                        message=f"Retrying sub-test: {name}..."
+                    ))
+                    continue # Repeat the same step
+                elif decision == "SKIP":
+                    await update_callback(TaskUpdate(
+                        task_id=task.task_id,
+                        status=TaskStatus.RUNNING,
+                        progress=progress,
+                        message=f"Skipping failed sub-test: {name}..."
+                    ))
+                    # Fall through to next step
+                elif decision == "ABORT":
+                    await update_callback(TaskUpdate(
+                        task_id=task.task_id,
+                        status=TaskStatus.FAILED,
+                        progress=progress,
+                        message=f"Task ABORTED by operator at {name}"
+                    ))
+                    return
+            
+            i += 1 # Next step
 
         await update_callback(TaskUpdate(
             task_id=task.task_id,
             status=TaskStatus.SUCCESS,
             progress=100,
-            message="All functional tests PASSED"
+            message="All functional tests completed (some steps might have been skipped)"
         ))
 
 class BurnInRunner:

@@ -74,6 +74,20 @@ function App() {
     return () => ws.current?.close();
   }, []);
 
+  const handleDecision = async (taskId: string, decision: string) => {
+    try {
+      await axios.post(`${API_BASE}/tasks/${taskId}/decision`, {
+        task_id: taskId,
+        decision: decision
+      }, {
+        headers: { "X-API-KEY": API_KEY }
+      });
+      setNotification(`Decision ${decision} sent for task ${taskId}`);
+    } catch (err) {
+      alert("Failed to send decision");
+    }
+  };
+
   const handleLaunchTask = async (action: string) => {
     if (!selectedRack) return;
     const taskId = `gui-${Math.random().toString(36).substr(2, 9)}`;
@@ -243,6 +257,25 @@ function App() {
                 <div style={{ marginTop: '0.75rem', color: 'var(--text-main)', fontSize: '0.8rem', opacity: 0.9 }}>
                   {task.message}
                 </div>
+
+                {task.status === 'WAITING_DECISION' && (
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', flex: 1, background: 'var(--accent)' }}
+                      onClick={() => handleDecision(task.task_id, 'RETRY')}
+                    >
+                      Retry Step
+                    </button>
+                    <button 
+                      className="btn" 
+                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', flex: 1 }}
+                      onClick={() => handleDecision(task.task_id, 'SKIP')}
+                    >
+                      Skip Step
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

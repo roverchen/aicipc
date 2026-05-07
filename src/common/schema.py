@@ -14,6 +14,7 @@ class TaskStatus(str, Enum):
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    WAITING_DECISION = "WAITING_DECISION"
 
 class TaskAction(str, Enum):
     OS_INSTALL = "OS_INSTALL"
@@ -69,3 +70,12 @@ class CommonResponse(BaseModel):
     success: bool
     message: str
     data: Optional[Dict] = None
+
+class DecisionType(str, Enum):
+    RETRY = "RETRY"
+    SKIP = "SKIP"
+    ABORT = "ABORT"
+
+class DecisionRequest(BaseModel):
+    task_id: str
+    decision: DecisionType

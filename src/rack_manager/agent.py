@@ -4,7 +4,11 @@ import socket
 import uuid
 import random
 import os
-from src.common.schema import RegisterRequest, HeartbeatRequest, TaskRequest, TaskUpdate, TaskStatus, DUTStatus
+import os
+from src.common.schema import (
+    RegisterRequest, HeartbeatRequest, TaskRequest, TaskUpdate, 
+    TaskStatus, DUTStatus, DecisionType
+)
 from src.rack_manager.task_handler import TaskHandler
 from src.rack_manager.logger import logger
 
@@ -65,6 +69,20 @@ class RackManagerAgent:
             except Exception as e:
                 print(f"[!] Heartbeat failed: {e}")
 
+    async def check_decision(self, task_id: str) -> Optional[DecisionType]:
+        """Poll the server for an operator decision on a paused task"""
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.get(f"{CONTROL_PLANE_URL}/api/v1/tasks/{task_id}")
+                data = resp.json()
+                params = data.get("params", {})
+                decision = params.get("operator_decision")
+                if decision:
+                    return DecisionType(decision)
+            except Exception as e:
+                print(f"[!] Check decision failed for {task_id}: {e}")
+        return None
+
     async def execute_task(self, task: TaskRequest):
         # Update DUT status to TESTING
         self.dut_status[task.dut_id] = DUTStatus.TESTING
@@ -77,9 +95,17 @@ class RackManagerAgent:
                 except Exception as e:
                     print(f"[!] Task update failed: {e}")
 
+        async def wait_for_decision(task_id: str) -> DecisionType:
+            print(f"[*] Task {task_id} paused. Waiting for operator decision...")
+            while True:
+                decision = await self.check_decision(task_id)
+                if decision:
+                    return decision
+                await asyncio.sleep(3)
+
         print(f"[+] Executing task: {task.task_id} ({task.action})")
         try:
-            await self.task_handler.execute(task, update_status)
+            await self.task_handler.execute(task, update_status, wait_for_decision)
         finally:
             # Revert DUT status to IDLE (or ERROR if failed, but for prototype IDLE is fine)
             self.dut_status[task.dut_id] = DUTStatus.IDLE

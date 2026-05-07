@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Generator
 from contextlib import asynccontextmanager
 from src.common.schema import (
-    RegisterRequest, HeartbeatRequest, CommonResponse, 
-    AgentStatus, TelemetryData, TaskRequest, TaskUpdate, TaskStatus
+    AgentStatus, TelemetryData, TaskRequest, TaskUpdate, TaskStatus,
+    DecisionRequest, DecisionType
 )
 from src.common.database import init_db, SessionLocal, AgentModel, TaskModel
 import uuid
@@ -51,6 +51,16 @@ async def monitor_agents():
         finally:
             db.close()
         await asyncio.sleep(5)
+
+async def notify_operator(title: str, message: str, level: str = "INFO"):
+    """Mock notification system (can be expanded to Email/Slack/SMS)"""
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"\n[NOTIFICATION] [{level}] {title}: {message} ({timestamp})\n")
+    # Broadcast notification to dashboard
+    await broadcast_json({
+        "type": "notification",
+        "data": {"title": title, "message": message, "level": level, "timestamp": timestamp}
+    })
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -162,7 +172,35 @@ async def update_task_status(update: TaskUpdate, x_api_key: str = Header(...), d
     
     # Broadcast to dashboard
     await broadcast_json({"type": "task_update", "data": update.dict()})
+
+    # Send notifications on completion or failure
+    if update.status == TaskStatus.SUCCESS:
+        await notify_operator("Task Completed", f"Task {update.task_id} on {task.rack_id}/{task.dut_id} finished successfully.")
+    elif update.status == TaskStatus.FAILED:
+        await notify_operator("Task Failed", f"Task {update.task_id} failed: {update.message}", level="ERROR")
+    elif update.status == TaskStatus.WAITING_DECISION:
+        await notify_operator("Action Required", f"Task {update.task_id} paused due to sub-test failure. Waiting for operator decision.", level="WARNING")
+
     return CommonResponse(success=True, message="Status updated")
+
+@app.post("/api/v1/tasks/{task_id}/decision", response_model=CommonResponse)
+async def handle_task_decision(task_id: str, req: DecisionRequest, x_api_key: str = Header(...), db: SessionLocal = Depends(get_db)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+
+    task = db.query(TaskModel).filter(TaskModel.task_id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Store decision in task params or a dedicated field for the agent to pick up
+    current_params = task.params or {}
+    current_params["operator_decision"] = req.decision
+    task.params = current_params
+    task.status = TaskStatus.RUNNING # Set back to running so agent sees the decision
+    task.message = f"Operator decided to {req.decision}. Resuming..."
+    
+    db.commit()
+    return CommonResponse(success=True, message=f"Decision {req.decision} recorded")
 
 @app.get("/api/v1/tasks/{task_id}")
 async def get_task_status(task_id: str, db: SessionLocal = Depends(get_db)):
