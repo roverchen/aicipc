@@ -214,6 +214,49 @@ async def list_agents(db: SessionLocal = Depends(get_db)):
     agents = db.query(AgentModel).all()
     return agents
 
+# --- Model Management API ---
+
+CONFIG_DIR = "configs/test_suites"
+
+@app.get("/api/v1/models")
+async def list_models():
+    if not os.path.exists(CONFIG_DIR):
+        return []
+    files = [f.replace(".json", "") for f in os.listdir(CONFIG_DIR) if f.endswith(".json")]
+    return files
+
+@app.get("/api/v1/models/{name}")
+async def get_model(name: str):
+    path = os.path.join(CONFIG_DIR, f"{name}.json")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Model not found")
+    with open(path, "r") as f:
+        import json
+        return json.load(f)
+
+@app.post("/api/v1/models/{name}")
+async def save_model(name: str, config: Dict, x_api_key: str = Header(...)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    path = os.path.join(CONFIG_DIR, f"{name}.json")
+    with open(path, "w") as f:
+        import json
+        json.dump(config, f, indent=2)
+    return {"success": True, "message": f"Model {name} saved"}
+
+@app.delete("/api/v1/models/{name}")
+async def delete_model(name: str, x_api_key: str = Header(...)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    
+    path = os.path.join(CONFIG_DIR, f"{name}.json")
+    if os.path.exists(path):
+        os.remove(path)
+        return {"success": True, "message": f"Model {name} deleted"}
+    raise HTTPException(status_code=404, detail="Model not found")
+
 @app.websocket("/ws/events")
 async def event_websocket(websocket: WebSocket):
     await websocket.accept()

@@ -27,7 +27,11 @@ function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [selectedRack, setSelectedRack] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>("default");
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [editingModelConfig, setEditingModelConfig] = useState<string>("");
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
+  const [view, setView] = useState<'dashboard' | 'models'>('dashboard');
+  const [searchQuery, setSearchQuery] = useState("");
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -53,9 +57,17 @@ function App() {
         setAgents(agentMap);
       } catch (err) {
         console.error("Failed to fetch agents", err);
+    const fetchModels = async () => {
+      try {
+        const resp = await axios.get(`${API_BASE}/models`);
+        setAvailableModels(resp.data);
+      } catch (err) {
+        console.error("Failed to fetch models", err);
       }
     };
+
     fetchData();
+    fetchModels();
 
     ws.current = new WebSocket(WS_URL);
     ws.current.onmessage = (event) => {
@@ -73,6 +85,32 @@ function App() {
 
     return () => ws.current?.close();
   }, []);
+
+  useEffect(() => {
+    if (view === 'models' && selectedModel) {
+      const fetchModelConfig = async () => {
+        try {
+          const resp = await axios.get(`${API_BASE}/models/${selectedModel}`);
+          setEditingModelConfig(JSON.stringify(resp.data, null, 2));
+        } catch (err) {
+          console.error("Failed to fetch model config", err);
+        }
+      };
+      fetchModelConfig();
+    }
+  }, [view, selectedModel]);
+
+  const handleSaveModel = async () => {
+    try {
+      const config = JSON.parse(editingModelConfig);
+      await axios.post(`${API_BASE}/models/${selectedModel}`, config, {
+        headers: { "X-API-KEY": API_KEY }
+      });
+      setNotification(`Model ${selectedModel} saved successfully`);
+    } catch (err) {
+      alert("Invalid JSON or save failed");
+    }
+  };
 
   const handleDecision = async (taskId: string, decision: string) => {
     try {
@@ -123,7 +161,21 @@ function App() {
       {notification && <div className="notification">{notification}</div>}
       <header>
         <div className="logo">AICIPC CONTROLLER</div>
-        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+          <nav style={{ display: 'flex', gap: '1rem' }}>
+            <button 
+              onClick={() => setView('dashboard')} 
+              style={{ background: 'none', border: 'none', color: view === 'dashboard' ? 'var(--accent)' : 'white', cursor: 'pointer', fontWeight: 600, borderBottom: view === 'dashboard' ? '2px solid var(--accent)' : 'none' }}
+            >
+              Dashboard
+            </button>
+            <button 
+              onClick={() => setView('models')} 
+              style={{ background: 'none', border: 'none', color: view === 'models' ? 'var(--accent)' : 'white', cursor: 'pointer', fontWeight: 600, borderBottom: view === 'models' ? '2px solid var(--accent)' : 'none' }}
+            >
+              Test Plans
+            </button>
+          </nav>
           <div className="metric-row" style={{ color: 'var(--success)', marginTop: 0 }}>
             <Activity size={18} />
             <span style={{ marginLeft: '0.5rem', fontWeight: 600 }}>System Ready</span>
@@ -135,8 +187,22 @@ function App() {
         </div>
       </header>
 
-      <main className="rack-grid">
-        {Object.entries(agents).map(([id, agent]) => (
+      {view === 'dashboard' ? (
+        <>
+          <div style={{ padding: '1rem 2rem', background: 'rgba(0,0,0,0.2)', marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+             <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 700 }}>Filter Racks</span>
+             <input 
+               type="text" 
+               placeholder="Search Rack ID (e.g. RACK-001)" 
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem 1rem', color: 'white' }}
+             />
+          </div>
+          <main className="rack-grid">
+            {Object.entries(agents)
+              .filter(([id]) => id.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map(([id, agent]) => (
           <div 
             key={id} 
             className={`rack-card ${selectedRack === id ? 'active' : ''}`}
@@ -189,6 +255,58 @@ function App() {
           </div>
         )}
       </main>
+      </>
+      ) : (
+        <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', gap: '2rem' }}>
+            <div style={{ width: '300px', background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '1rem' }}>
+              <h3 style={{ marginBottom: '1.5rem' }}>Model Library</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {availableModels.map(model => (
+                  <button 
+                    key={model}
+                    onClick={() => setSelectedModel(model)}
+                    style={{ 
+                      textAlign: 'left',
+                      padding: '0.75rem', 
+                      borderRadius: '0.5rem', 
+                      background: selectedModel === model ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {model}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.5rem' }}>Test Plan: {selectedModel}</h2>
+                <button className="btn btn-primary" onClick={handleSaveModel} style={{ padding: '0.5rem 2rem' }}>Save Changes</button>
+              </div>
+              <textarea 
+                value={editingModelConfig}
+                onChange={(e) => setEditingModelConfig(e.target.value)}
+                style={{ 
+                  width: '100%', 
+                  height: '600px', 
+                  background: '#0f172a', 
+                  color: '#e2e8f0', 
+                  fontFamily: 'monospace', 
+                  fontSize: '0.9rem', 
+                  padding: '1.5rem', 
+                  borderRadius: '1rem', 
+                  border: '1px solid var(--border)',
+                  outline: 'none'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={`task-panel ${isTaskPanelOpen ? 'open' : ''}`}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
@@ -203,7 +321,7 @@ function App() {
 
         <div style={{ marginBottom: '2rem' }}>
           <label style={{ display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.5rem' }}>Device Model</label>
-          <select 
+            <select 
             value={selectedModel} 
             onChange={(e) => setSelectedModel(e.target.value)}
             style={{ 
@@ -217,9 +335,9 @@ function App() {
               cursor: 'pointer'
             }}
           >
-            <option value="default">Default Standard</option>
-            <option value="model_pro_server">Pro High-Performance Server</option>
-            <option value="model_edge_ai">Edge AI Gateway (Low Temp)</option>
+            {availableModels.map(model => (
+              <option key={model} value={model}>{model}</option>
+            ))}
           </select>
         </div>
         
