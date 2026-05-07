@@ -120,10 +120,12 @@ if __name__ == "__main__":
     import random
     import sys
     
-    # Allow passing Rack ID via env or arg
-    rack_id = f"RACK-{random.randint(1, 99):03d}"
-    if len(sys.argv) > 1:
+    # Priority: Env Var > Command Line Arg > Random Fallback
+    rack_id = os.getenv("RACK_ID")
+    if not rack_id and len(sys.argv) > 1:
         rack_id = sys.argv[1]
+    if not rack_id:
+        rack_id = f"RACK-{random.randint(1, 99):03d}"
         
     print(f"[*] Starting Rack Manager Agent for {rack_id}")
     agent = RackManagerAgent(rack_id)

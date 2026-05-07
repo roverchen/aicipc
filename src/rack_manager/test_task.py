@@ -10,23 +10,39 @@ API_KEY = "aicipc-secret-2026"
 async def submit_and_monitor(rack_id: str, dut_id: str, action: TaskAction):
     task_id = f"task-{uuid.uuid4().hex[:8]}"
     
-    req = TaskRequest(
-        task_id=task_id,
-        rack_id=rack_id,
-        dut_id=dut_id,
-        action=action,
-        params={
-            "image_url": "http://images.local/ubuntu-22.04.iso",
-            "simulate_overheat": "true" if action == TaskAction.BURN_IN and "--overheat" in sys.argv else "false"
-        }
-    )
+    # Parse additional params from sys.argv
+    params = {
+        "image_url": "http://images.local/ubuntu-22.04.iso",
+        "simulate_overheat": "true" if "--overheat" in sys.argv else "false"
+    }
     
+    for arg in sys.argv:
+        if arg.startswith("--params"):
+            # Handle --params model=name
+            try:
+                param_str = sys.argv[sys.argv.index(arg) + 1]
+                if "=" in param_str:
+                    key, val = param_str.split("=")
+                    params[key] = val
+            except:
+                pass
+        elif arg.startswith("model="):
+            # Handle model=name directly
+            key, val = arg.split("=")
+            params[key] = val
+
     async with httpx.AsyncClient() as client:
         # Submit Task
         print(f"[*] Submitting {action} for {rack_id}/{dut_id}...")
         resp = await client.post(
             f"{CONTROL_PLANE_URL}/api/v1/tasks", 
-            content=req.model_dump_json(), 
+            content=TaskRequest(
+                task_id=task_id,
+                rack_id=rack_id,
+                dut_id=dut_id,
+                action=action,
+                params=params
+            ).model_dump_json(), 
             headers={"Content-Type": "application/json", "X-API-KEY": API_KEY}
         )
         resp.raise_for_status()
@@ -49,7 +65,7 @@ async def submit_and_monitor(rack_id: str, dut_id: str, action: TaskAction):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python3 -m src.rack_manager.test_task <RACK_ID> <DUT_ID> <ACTION> [--overheat]")
+        print("Usage: python3 -m src.rack_manager.test_task <RACK_ID> <DUT_ID> <ACTION> [--params model=name] [--overheat]")
         sys.exit(1)
         
     rack = sys.argv[1]

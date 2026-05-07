@@ -67,19 +67,31 @@ class TaskHandler:
             await thermal_monitor.stop()
 
     async def _handle_os_install(self, task: TaskRequest, update_callback):
-        print(f"[Task] Starting OS Install for {task.dut_id}")
-        steps = [
-            (10, "Setting PXE boot flags..."),
-            (30, "Requesting IP from DHCP..."),
-            (50, "Downloading OS image (Ubuntu 22.04)..."),
-            (70, "Formatting disk and installing..."),
-            (90, "Configuring post-install scripts...")
-        ]
+        is_rshim = task.params.get("rshim") == "true" or "bluefield" in task.params.get("model", "").lower()
+        
+        if is_rshim:
+            print(f"[Task] Starting rshim OS Deployment for {task.dut_id} (Bluefield DPU)")
+            steps = [
+                (10, "Detecting /dev/rshim0 interface..."),
+                (30, "Mapping virtual USB/PCIe channel..."),
+                (60, "Pushing boot image to DPU ARM core..."),
+                (85, "Waiting for DPU internal install..."),
+            ]
+        else:
+            print(f"[Task] Starting PXE OS Install for {task.dut_id}")
+            steps = [
+                (10, "Setting PXE boot flags via BMC..."),
+                (30, "Requesting IP from DHCP..."),
+                (50, "Downloading OS image via TFTP/HTTP..."),
+                (70, "Formatting disk and installing..."),
+                (90, "Configuring post-install scripts...")
+            ]
+            
         for progress, message in steps:
             await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.RUNNING, progress=progress, message=message))
             await asyncio.sleep(1.5)
         
-        await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.SUCCESS, progress=100, message="OS Installation Complete"))
+        await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.SUCCESS, progress=100, message=f"{'rshim' if is_rshim else 'PXE'} Installation Complete"))
 
     async def _handle_fw_update(self, task: TaskRequest, update_callback):
         print(f"[Task] Starting FW Update for {task.dut_id}")
