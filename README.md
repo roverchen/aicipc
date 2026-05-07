@@ -34,6 +34,38 @@
 
 ---
 
+## 測試定製化 | Test Customization
+
+系統支援「配置驅動 (Configuration-driven)」的測試定製化，允許測試者根據不同機種 (Model) 彈性調整測試內容。
+
+### 1. 配置結構
+在 `configs/test_suites/` 目錄下存放特定機種的 JSON 配置檔：
+*   `default.json`: 通用基準測試。
+*   `model_name.json`: 特定機種定製化測試。
+
+### 2. 配置範例 (JSON)
+```json
+{
+  "function_test": [
+    {"name": "CPU_Check", "progress": 20},
+    {"name": "Memory_ECC_Test", "progress": 50},
+    {"name": "100G_NIC_Link", "progress": 85}
+  ],
+  "burn_in": {
+    "total_hours": 24,
+    "thermal_threshold": 85.0
+  }
+}
+```
+
+### 3. 使用方式
+下發任務時，在參數中指定 `model` 即可自動載入對應配置：
+```bash
+python3 -m src.rack_manager.test_task RACK-001 DUT-01 FUNCTION_TEST --params model=model_name
+```
+
+---
+
 ## 快速開始與開發階段 | Getting Started & Development Phases
 
 ### Phase 1: 基礎環境與服務啟動
