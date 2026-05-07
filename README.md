@@ -112,6 +112,9 @@ python3 -m src.rack_manager.test_task RACK-XXX DUT-03 BURN_IN --overheat
 本階段提供 Web Dashboard 進行即時監控，以及 CLI 工具進行大規模批次操作。
 
 #### 網頁 Dashboard
+![Dashboard Preview](docs/images/dashboard_preview.png)
+*圖：AICIPC 視覺化儀表板 - 支援多機架狀態監控與機種自定義測試下發*
+
 1. 進入 `frontend` 目錄並啟動開發伺服器：
    ```bash
    cd frontend
