@@ -42,10 +42,10 @@
 
 | 項目 | **PXE 網路開機部署** | **rshim 介面部署 (DPU)** | **BMC Bootup 測試** |
 | :--- | :--- | :--- | :--- |
-| **主要對象** | 標準 Server/工業電腦主機 [cite: 46] | Bluefield DPU 及其 ARM 核心 [cite: 46, 50] | 已安裝 OS 的 DUT 狀態檢查 [cite: 10, 58] |
-| **通訊媒介** | 乙太網路 (Data Network) [cite: 40, 48] | 虛擬 USB/PCIe 通道 (`/dev/rshim0`) [cite: 20] | IPMI / Redfish API 管理網路 [cite: 10, 46] |
-| **核心流程** | DHCP -> TFTP 下載引導 -> NFS/HTTP 傳輸 OS 映像檔。 | 直接將引導映像檔寫入 `/dev/rshim0/boot` 進行推送 [cite: 20]。 | 下達 Chassis Power On 指令，監控開機 Log [cite: 58]。 |
-| **優點** | 產業標準，支援大規模並行部署 [cite: 9]。 | 無需複雜網路設定，可直接存取 DPU 內部。 | 無需安裝程序，僅驗證硬體啟動狀態。 |
+| **主要對象** | 標準 Server/工業電腦主機 | Bluefield DPU 及其 ARM 核心 | 已安裝 OS 的 DUT 狀態檢查 |
+| **通訊媒介** | 乙太網路 (Data Network) | 虛擬 USB/PCIe 通道 (`/dev/rshim0`) | IPMI / Redfish API 管理網路 |
+| **核心流程** | DHCP -> TFTP 下載引導 -> NFS/HTTP 傳輸 OS 映像檔。 | 直接將引導映像檔寫入 `/dev/rshim0/boot` 進行推送。 | 下達 Chassis Power On 指令，監控開機 Log。 |
+| **優點** | 產業標準，支援大規模並行部署。 | 無需複雜網路設定，可直接存取 DPU 內部。 | 無需安裝程序，僅驗證硬體啟動狀態。 |
 
 ---
 
@@ -53,40 +53,40 @@
 
 #### 1. PXE 網路開機 (標準流程)
 這是針對一般機種的自動化核心。
-* **流程**：系統透過 BMC 修改 BIOS 開機順序為 PXE [cite: 20] -> 重啟 DUT -> DUT 向 Rack Manager 請求 IP 與引導檔案 [cite: 30] -> 自動安裝腳本執行 [cite: 54]。
-* **關鍵點**：依賴 Rack Manager 提供穩定的 DHCP/TFTP 服務 [cite: 30]。
+* **流程**：系統透過 BMC 修改 BIOS 開機順序為 PXE -> 重啟 DUT -> DUT 向 Rack Manager 請求 IP 與引導檔案 -> 自動安裝腳本執行。
+* **關鍵點**：依賴 Rack Manager 提供穩定的 DHCP/TFTP 服務。
 
 #### 2. rshim 介面 (特定機種)
-專為具有 Bluefield DPU 的機種設計 [cite: 20]。
-* **流程**：主機 OS 啟動後，識別出 `rshim` 驅動 [cite: 20] -> 測試系統將約 2GB 的映像檔寫入 `/dev/rshim0/boot` -> DPU 內部的 ARM 核心偵測到映像檔並開始安裝。
+專為具有 Bluefield DPU 的機種設計。
+* **流程**：主機 OS 啟動後，識別出 `rshim` 驅動 -> 測試系統將約 2GB 的映像檔寫入 `/dev/rshim0/boot` -> DPU 內部的 ARM 核心偵測到映像檔並開始安裝。
 * **關鍵點**：這是「後門」式安裝，不佔用外部網路頻寬，但需要 Host 端有對應的驅動。
 
 #### 3. BMC Bootup (管理啟動)
-這主要用於測試全自動流程中的「開機階段」驗證 [cite: 58]。
-* **流程**：不涉及 OS 安裝，而是驗證 BIOS/BMC 刷新後是否能正確進入 OS [cite: 22]。
-* **關鍵點**：利用 BMC 讀取 Sensor 數據（溫度、風扇）來判斷開機是否正常 [cite: 28, 56]。
+這主要用於測試全自動流程中的「開機階段」驗證。
+* **流程**：不涉及 OS 安裝，而是驗證 BIOS/BMC 刷新後是否能正確進入 OS。
+* **關鍵點**：利用 BMC 讀取 Sensor 數據（溫度、風扇）來判斷開機是否正常。
 
 ---
 
 ### 三、 需要特別注意的事項
 
 #### 1. 網路頻寬與隔離
-* **10G 需求**：當 30 組 Rack 同時執行 PXE 安裝時，若 OS 映像檔達 10GB，會造成網路壅塞 [cite: 48, 50]。需確保控制平面到 Rack Manager 具備 10G 以上頻寬 [cite: 48]。
-* **實體隔離**：管理網路 (IPMI) 應與資料網路 (PXE/OS 傳輸) 實體隔離，避免大量部署時影響到 BMC 的控制連線 [cite: 40]。
+* **10G 需求**：當 30 組 Rack 同時執行 PXE 安裝時，若 OS 映像檔達 10GB，會造成網路壅塞。需確保控制平面到 Rack Manager 具備 10G 以上頻寬。
+* **實體隔離**：管理網路 (IPMI) 應與資料網路 (PXE/OS 傳輸) 實體隔離，避免大量部署時影響到 BMC 的控制連線。
 
 #### 2. 狀態判斷機制 (關鍵字監測)
-* **不建議使用時間判定**：每台機器安裝 OS 或開機的速度不同，強行設定「逾時時間」會導致誤判 [cite: 24, 50]。
-* **關鍵字偵測**：應透過 Serial Console 監控特定的關鍵字串（如 `Login:` 或 `Installation Complete`）來觸發下一個測試階段 [cite: 58]。
+* **不建議使用時間判定**：每台機器安裝 OS 或開機的速度不同，強行設定「逾時時間」會導致誤判。
+* **關鍵字偵測**：應透過 Serial Console 監控特定的關鍵字串（如 `Login:` 或 `Installation Complete`）來觸發下一個測試階段。
 
 #### 3. 韌體與驅動相容性
-* **Checksum 驗證**：傳輸 FW 或 OS 映像檔前，必須比對 SHA-256 Checksum，避免因檔案毀損導致 DUT 變磚 [cite: 22]。
-* **rshim 依賴**：執行 `rshim` 部署前，需確認 Host 端的驅動程式版本與 DPU 韌體相容，否則 `/dev/rshim0` 裝置可能無法出現 [cite: 20]。
+* **Checksum 驗證**：傳輸 FW 或 OS 映像檔前，必須比對 SHA-256 Checksum，避免因檔案毀損導致 DUT 變磚。
+* **rshim 依賴**：執行 `rshim` 部署前，需確認 Host 端的驅動程式版本與 DPU 韌體相容，否則 `/dev/rshim0` 裝置可能無法出現。
 
 #### 4. 安全保護機制
-* **過熱保護**：無論哪種啟動模式，系統必須在偵測到 CPU 溫度超過閾值（如 95°C）時，由 BMC 直接執行強制斷電，而非等待軟體指令 [cite: 26, 56]。
+* **過熱保護**：無論哪種啟動模式，系統必須在偵測到 CPU 溫度超過閾值（如 95°C）時，由 BMC 直接執行強制斷電，而非等待軟體指令。
 
 > [!TIP]
-> 針對本專案，建議將 **PXE 與 rshim 邏輯模組化**。在下發測試計畫時，由系統自動根據「機種參數」判斷應走哪一條路徑，並統一將 Log 匯總至 Dashboard 顯示 [cite: 16, 58]。
+> 針對本專案，建議將 **PXE 與 rshim 邏輯模組化**。在下發測試計畫時，由系統自動根據「機種參數」判斷應走哪一條路徑，並統一將 Log 匯總至 Dashboard 顯示。
 
 ---
 
