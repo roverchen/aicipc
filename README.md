@@ -72,7 +72,7 @@ python3 -m src.rack_manager.test_task RACK-001 DUT-01 FUNCTION_TEST --params mod
 本階段涵蓋基礎依賴安裝與核心服務的模擬運行。
 #### 1. 依賴安裝
 ```bash
-pip install fastapi uvicorn httpx pydantic
+pip install fastapi uvicorn httpx pydantic sqlalchemy typer rich
 ```
 
 #### 2. 啟動服務
@@ -98,37 +98,46 @@ python3 -m src.rack_manager.test_task RACK-XXX DUT-02 FW_UPDATE
 ### Phase 3: 測試引擎與熱保護驗證
 測試引擎負責執行更複雜的邏輯，包含多步驟的功能測試與具備「自動溫控中斷」機制的燒機測試：
 ```bash
-# 執行功能測試套件 (CPU, Memory, Network, BMC)
+# 執行功能測試套件 (使用預設配置)
 python3 -m src.rack_manager.test_task RACK-XXX DUT-01 FUNCTION_TEST
 
-# 執行標準燒機測試 (包含每小時進度回報)
-python3 -m src.rack_manager.test_task RACK-XXX DUT-02 BURN_IN
+# 執行特定機種的燒機測試 (自動載入 model_pro_server.json)
+python3 -m src.rack_manager.test_task RACK-XXX DUT-02 BURN_IN --params model=model_pro_server
 
-# 模擬高溫自動中止 (熱保護機制驗證)
+# 模擬高溫自動中止 (驗證動態熱保護機制)
 python3 -m src.rack_manager.test_task RACK-XXX DUT-03 BURN_IN --overheat
 ```
 
 ### Phase 4: 視覺化介面與批次操作工具
 本階段提供 Web Dashboard 進行即時監控，以及 CLI 工具進行大規模批次操作。
+
 #### 網頁 Dashboard
 1. 進入 `frontend` 目錄並啟動開發伺服器：
    ```bash
    cd frontend
-   npm run dev
+   npm install && npm run dev
    ```
-2. 開啟瀏覽器訪問預設位址 (通常為 `http://localhost:5173`)。
+2. 開啟瀏覽器訪問 `http://localhost:5173`。
+3. **機種選擇**：在控制面板中可透過「Device Model」下拉選單切換測試配置。
 
 #### Python CLI 工具
-提供強大的命令列批次操作功能：
+提供強大的命令列批次操作功能，支援機種指定與過熱模擬：
 ```bash
-# 列出所有在線的 Rack 狀態
-python3 -m src.control_plane.cli list-agents
+# 下發特定機種任務
+python3 -m src.control_plane.cli deploy RACK-XXX --action BURN_IN --model model_pro_server
 
-# 下發並監控任務進度
-python3 -m src.control_plane.cli deploy RACK-XXX --action OS_INSTALL
+# 下發並模擬過熱保護
+python3 -m src.control_plane.cli deploy RACK-XXX --action BURN_IN --overheat
 ```
 
-### Phase 5: 生產環境 Docker 部署
+### Phase 5: 日誌追蹤與生產部署
+#### 日誌追蹤
+Agent 會在本地儲存詳細執行日誌，可隨時查看：
+```bash
+cat logs/<TASK_ID>.log
+```
+
+### Phase 6: 生產環境 Docker 部署
 系統已完整支援資料庫持久化與 Docker 容器化部署，適合正式上線環境。
 #### 使用 Docker Compose 啟動全系統
 ```bash
@@ -208,7 +217,8 @@ aicipc/
 - [x] **Phase 2 (核心功能)**: 實作 PXE OS 安裝與 BMC FW 更新流程。
 - [x] **Phase 3 (測試引擎)**: 整合 Function Test 套件與 Burn-in 壓力設定檔。
 - [x] **Phase 4 (介面開發)**: 完成 Web Dashboard 與 Python CLI 工具。
-- [x] **Phase 5 (分階段部署)**: 實作資料庫持久化、安全驗證與 Docker 部署。
+- [x] **Phase 5 (日誌系統)**: 實作邊緣端本地日誌儲存與追蹤。
+- [x] **Phase 6 (分階段部署)**: 實作資料庫持久化、安全驗證與 Docker 部署。
 
 ---
 
