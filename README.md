@@ -95,17 +95,18 @@ python3 -m src.rack_manager.test_task RACK-XXX DUT-01 OS_INSTALL
 python3 -m src.rack_manager.test_task RACK-XXX DUT-02 FW_UPDATE
 ```
 
-### Phase 3: 測試引擎與熱保護驗證
-測試引擎負責執行更複雜的邏輯，包含多步驟的功能測試與具備「自動溫控中斷」機制的燒機測試：
+### Phase 3: 測試引擎與自動化邏輯
+測試引擎負責執行複雜的邏輯，具備以下工業級特性：
+- **自動容錯跳過 (Auto-Skip)**: 子項目測試失敗時自動記錄錯誤並跳過，確保批次測試流程不因單點故障而中斷。
+- **完測摘要報告 (Summary Report)**: 測試結束後自動彙整成功率，並條列所有失敗項目名稱。
+- **動態熱保護 (Thermal Protection)**: 燒機期間即時監控溫度，達到機種閾值時自動強制中斷。
+
 ```bash
-# 執行功能測試套件 (使用預設配置)
+# 執行功能測試套件 (使用預設配置，具備自動跳過與報告彙整功能)
 python3 -m src.rack_manager.test_task RACK-XXX DUT-01 FUNCTION_TEST
 
 # 執行特定機種的燒機測試 (自動載入 model_pro_server.json)
 python3 -m src.rack_manager.test_task RACK-XXX DUT-02 BURN_IN --params model=model_pro_server
-
-# 模擬高溫自動中止 (驗證動態熱保護機制)
-python3 -m src.rack_manager.test_task RACK-XXX DUT-03 BURN_IN --overheat
 ```
 
 ### Phase 4: 視覺化介面與批次操作工具
@@ -251,6 +252,7 @@ python3 -m src.control_plane.cli list-agents
 - [x] **Phase 5 (日誌系統)**: 實作邊緣端本地日誌儲存與追蹤。
 - [x] **Phase 6 (生產部署)**: 實作資料庫持久化、安全驗證與 Docker 部署。
 - [x] **Phase 7 (雲端優化)**: 支援環境變數配置與遠端 URL 自動適應。
+- [x] **Phase 8 (自動化回報)**: 實作失敗自動跳過、完測摘要報告與警報通知中心。
 
 ---
 
