@@ -2,14 +2,18 @@ import typer
 import requests
 import uuid
 import time
+import os
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 app = typer.Typer(help="AICIPC Command Line Interface")
 console = Console()
-API_BASE = "http://localhost:8000/api/v1"
-API_KEY = "aicipc-secret-2026"
+
+# Configuration via environment variables
+BASE_URL = os.getenv("CONTROL_PLANE_URL", "http://localhost:8000")
+API_BASE = f"{BASE_URL}/api/v1"
+API_KEY = os.getenv("API_KEY", "aicipc-secret-2026")
 HEADERS = {"X-API-KEY": API_KEY}
 
 @app.command()

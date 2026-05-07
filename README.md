@@ -212,6 +212,34 @@ aicipc/
 *   **異常處理**：若燒機異常立即停止並顯示 Fail，需記錄完整 Log 供 R&D 分析。
 *   **驗收標準**：需完成 1 個 Rack 的完整流程驗證。
 
+### Phase 7: 雲端部署指南 | Cloud Deployment Guide
+本系統支援 Docker 化部署，可輕易發布至雲端環境（如 Google Cloud Run, AWS, VPS）。
+
+#### 1. 部署控制中心 (Control Plane + Dashboard)
+由於 `Dockerfile` 包含前端編譯，您只需部署一個容器即可：
+- **Google Cloud Run (推薦)**：
+  1. 在 GCP Console 建立 Cloud Run 服務，連結 GitHub 倉庫。
+  2. 設定環境變數 `API_KEY` (選填)。
+  3. 部署後獲得 HTTPS 網址。
+- **自建 VPS (Docker Compose)**：
+  ```bash
+  docker-compose up -d --build
+  ```
+
+#### 2. 設定邊緣代理 (Edge Agent) 連向雲端
+當控制中心在雲端運行時，本地或邊緣端的 Agent 需指定連線網址：
+```bash
+# 設定環境變數並啟動
+export CONTROL_PLANE_URL="https://your-cloud-app-url"
+python3 -m src.rack_manager.agent
+```
+
+#### 3. CLI 工具連接遠端
+```bash
+export CONTROL_PLANE_URL="https://your-cloud-app-url"
+python3 -m src.control_plane.cli list-agents
+```
+
 ---
 
 ## 開發進度 | Development Status
@@ -221,7 +249,8 @@ aicipc/
 - [x] **Phase 3 (測試引擎)**: 整合 Function Test 套件與 Burn-in 壓力設定檔。
 - [x] **Phase 4 (介面開發)**: 完成 Web Dashboard 與 Python CLI 工具。
 - [x] **Phase 5 (日誌系統)**: 實作邊緣端本地日誌儲存與追蹤。
-- [x] **Phase 6 (分階段部署)**: 實作資料庫持久化、安全驗證與 Docker 部署。
+- [x] **Phase 6 (生產部署)**: 實作資料庫持久化、安全驗證與 Docker 部署。
+- [x] **Phase 7 (雲端優化)**: 支援環境變數配置與遠端 URL 自動適應。
 
 ---
 

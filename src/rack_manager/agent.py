@@ -3,12 +3,14 @@ import asyncio
 import socket
 import uuid
 import random
+import os
 from src.common.schema import RegisterRequest, HeartbeatRequest, TaskRequest, TaskUpdate, TaskStatus, DUTStatus
 from src.rack_manager.task_handler import TaskHandler
 from src.rack_manager.logger import logger
 
-CONTROL_PLANE_URL = "http://localhost:8000"
-API_KEY = "aicipc-secret-2026"
+# Configuration via environment variables
+CONTROL_PLANE_URL = os.getenv("CONTROL_PLANE_URL", "http://localhost:8000")
+API_KEY = os.getenv("API_KEY", "aicipc-secret-2026")
 
 class RackManagerAgent:
     def __init__(self, rack_id: str):

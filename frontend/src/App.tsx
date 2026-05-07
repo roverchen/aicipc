@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Activity, Server, Cpu, Play } from 'lucide-react';
 import axios from 'axios';
 
-const API_BASE = "http://localhost:8000/api/v1";
-const WS_URL = "ws://localhost:8000/ws/events";
+const API_BASE = window.location.origin + "/api/v1";
+const WS_URL = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + "/ws/events";
 const API_KEY = "aicipc-secret-2026";
 
 interface Agent {
