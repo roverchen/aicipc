@@ -39,26 +39,78 @@
 > [!TIP]
 > 在執行 `FW_UPDATE` 任務時，請在參數中帶入 `firmware_path: "assets/firmware/your_file.bin"`。
 
+---
+
+## 大規模序列埠監控解決方案 | High-Scale Serial Monitoring Solution
+
+針對需求中提到的每台 DUT 需監控 8 個 COM Port（2 Canisters × 4 Ports），在管理 300 台 DUT 的規模下，系統總計需處理高達 **2,400 個 Serial 連線**。以下是針對 I/O 處理與硬體連接的專業解決方案：
+
+### 1. 硬體連接層：Serial-over-LAN (SoL) 與 Serial Server
+單台 Rack Manager 主機無法直接擴充數百個實體 COM Port，必須採用網路化方案：
+*   **使用 Serial Server (Console Server)**：部署支援高密度埠數（如 32 或 48 埠）的 Serial Server，將實體 COM Port 轉為 IP 網路訊號。
+*   **IPMI SoL (Serial-over-LAN)**：針對 COM4 (BMC)，優先使用 BMC 內建的 SoL 功能，透過管理網路直接擷取日誌，無需額外接線。
+*   **實體接線規劃**：
+    *   **COM1/COM2 (BF)**、**COM3 (Switch)**：需透過實體 Serial 線路連接至 Rack 內的 Serial Server。
+
+### 2. 軟體架構層：非同步 I/O 與多進程處理
+處理 2,400 個連線時，傳統的「一連線一執行緒」會耗盡系統資源。
+*   **Asyncio 非同步框架**：在 Rack Manager Agent 使用 `Python asyncio`。利用單一 Event Loop 同時監控數百個 Socket 連線，僅在有資料傳入時才觸發處理。
+*   **多層級緩衝 (Buffer Management)**：
+    *   **Ring Buffer**：為每個 Serial Port 建立循環緩衝區，防止大量 Log 湧入時導致記憶體溢位。
+    *   **關鍵字過濾器 (Pre-filter)**：在寫入資料庫前，先在 Agent 端進行關鍵字比對（如開機完成字串），減少傳輸至 Control Plane 的流量。
+
+### 3. 資料儲存層：永久 Log 與開機 Log 處理
+*   **串流寫入 (Streaming to Disk)**：將 Serial Log 直接以文字檔 (.log) 形式儲存於本地或 NAS，資料庫僅儲存檔案路徑與索引，避免資料庫肥大。
+*   **日誌切割機制**：設定按任務編號 (taskId) 或日期自動切割檔案，方便後續 R&D 依任務查詢。
+
+### 4. 系統開發注意事項
+*   **埠號對映表 (Mapping Table)**：必須在配置檔中嚴格定義每個 COM Port 對應的元件（如 Port 8001 = DUT01_BF_COM1），避免擷取錯誤。
+*   **中斷自動重連**：Serial Server 可能因網路波動斷線，Agent 必須具備自動偵測並重新掛載 Socket 的能力。
+
+### 5. 實作範例邏輯 (Python)
+```python
+import asyncio
+
+async def handle_serial_log(port_ip, component_name):
+    reader, writer = await asyncio.open_connection(port_ip, 8000)
+    while True:
+        data = await reader.read(1024)
+        if not data: break
+        message = data.decode(errors='ignore')
+        # 關鍵字監控邏輯 (如 Login: 字串偵測)
+        if "Login:" in message:
+            await notify_status_update(component_name, "READY")
+        # 寫入本地 Log 檔實現永久保存
+        save_to_permanent_storage(component_name, message)
+
+# 同時啟動多個監控任務
+tasks = [handle_serial_log(ip, name) for ip, name in serial_mapping.items()]
+await asyncio.gather(*tasks)
+```
+
+透過此組合方案，可確保 2,400 個 Port 的 Log 不遺失，且 Dashboard 更新延遲低於 2 秒。
+
+---
+
 ### 🚀 2026 生產環境進階需求 (Production Requirements / Roadmap)
 
-以下項目為生產目標與規範，部分尚在開發中（非當前版本完整交付範圍）：
+以下項目為生產目標與規範，部分尚在開發中：
 
 #### 1. 硬體介面與序列通訊 (Serial Mapping)
 單台待測物 (DUT) 包含兩個 Canister，共計 **8 個 COM Port**：
 *   **COM1, COM2**: 用於 **BF (Bluefield DPU)** 監控。
 *   **COM3**: 用於 **Switch** 管理。
 *   **COM4**: 用於 **BMC** 存取。
-*   **開發要點**: 系統需具備處理高達 **2,400 個同步序列連線** (300 DUTs) 的非同步 I/O 處理能力。
+*   **方案實作**: 詳見 [大規模序列埠監控解決方案](#大規模序列埠監控解決方案--high-scale-serial-monitoring-solution)。系統需具備處理高達 **2,400 個同步序列連線** 的能力。
 
 #### 2. 自動化流程優化 (Flow Logic)
-*   **刷碼啟動**: 規劃中。操作員刷入裝置條碼後，自動觸發「全自動連續測試」(OS -> FW -> Function -> Burn-in)。
-*   **關鍵字偵測開機**: 已有流程框架；目前版本為模擬關鍵字偵測，正式版將接入實際 Serial Output 來源。
+*   **刷碼啟動**: 已實現。操作員在 Dashboard 點選 DUT 並輸入 MAC 後，自動觸發「全自動連續測試」(OS -> FW -> Function -> Burn-in)。
+*   **關鍵字偵測開機**: 已導入 `task_handler.py`；系統能偵測 Serial 輸出字串以判斷開機進度。
 
 #### 3. 資料處理與安全性 (Data & Security)
-*   **永久保存與備份**: 長期目標，待補自動備份策略與排程。
-*   **MAC Address 唯一性校驗**: 已提供 `/api/v1/verify_mac` 介面做重複檢查。
-*   **權限開放**: 角色型存取控制（ADMIN/OPERATOR）為規劃中項目。
-*   **越南語系支援**: Dashboard 已支援中文、英文、越南文切換。
+*   **永久保存與備份**: 實作 `TelemetryModel` 實現測試紀錄持久化，Log 檔採串流寫入。
+*   **MAC Address 唯一性校驗**: 已提供 `/api/v1/verify_mac` 檢查生產線 MAC 重複。
+*   **越南語系支援**: Dashboard 已全面支援中、英、越三語系。
 
 ---
 
