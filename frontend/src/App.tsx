@@ -495,224 +495,181 @@ function App() {
   };
 
   return (
-    <div className="dashboard-container">
+    <div className="app-container" style={{ display: 'flex', height: '100vh', background: 'var(--bg)', color: 'var(--text-main)' }}>
       {notification && <div className="notification">{notification}</div>}
-      <header>
-        <div className="logo">AICIPC CONTROLLER</div>
-        <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-          <nav style={{ display: 'flex', gap: '1rem' }}>
-            <button 
-              onClick={() => setView('dashboard')} 
-              style={{ background: 'none', border: 'none', color: view === 'dashboard' ? 'var(--accent)' : 'white', cursor: 'pointer', fontWeight: 600, borderBottom: view === 'dashboard' ? '2px solid var(--accent)' : 'none' }}
-            >
-              Dashboard
-            </button>
-            <button 
-              onClick={() => setView('models')} 
-              style={{ background: 'none', border: 'none', color: view === 'models' ? 'var(--accent)' : 'white', cursor: 'pointer', fontWeight: 600, borderBottom: view === 'models' ? '2px solid var(--accent)' : 'none' }}
-            >
-              Test Plans
-            </button>
-          </nav>
+      
+      {/* Sidebar */}
+      <div className="sidebar" style={{ width: '280px', background: 'rgba(0,0,0,0.3)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
+          <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '0.75rem' }}>
+            <Activity size={24} color="white" />
+          </div>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em' }}>AICIPC <span style={{ color: 'var(--accent)', fontSize: '0.7rem', verticalAlign: 'top' }}>PRO</span></h1>
+        </div>
+        
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0 1rem' }}>
+          <button 
+            className={`nav-item ${view === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setView('dashboard')}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', padding: '0.8rem 1rem', 
+              borderRadius: '0.75rem', border: 'none', background: view === 'dashboard' ? 'var(--accent)' : 'transparent',
+              color: 'white', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+            }}
+          >
+            <Server size={18} /> {t.dashboard}
+          </button>
+          <button 
+            className={`nav-item ${view === 'models' ? 'active' : ''}`}
+            onClick={() => setView('models')}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', padding: '0.8rem 1rem', 
+              borderRadius: '0.75rem', border: 'none', background: view === 'models' ? 'var(--accent)' : 'transparent',
+              color: 'white', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+            }}
+          >
+            <Play size={18} /> {t.testPlans}
+          </button>
+        </nav>
+
+        <div style={{ marginTop: 'auto', padding: '1.5rem', borderTop: '1px solid var(--border)' }}>
+          <select 
+            value={lang} 
+            onChange={(e) => setLang(e.target.value as any)}
+            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '0.5rem', borderRadius: '0.5rem', outline: 'none', cursor: 'pointer' }}
+          >
+            <option value="zh" style={{ background: '#1e293b' }}>繁體中文</option>
+            <option value="en" style={{ background: '#1e293b' }}>English</option>
+            <option value="vi" style={{ background: '#1e293b' }}>Tiếng Việt</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <header style={{ padding: '1rem 2rem', display: 'flex', justifyContent: 'flex-end', gap: '2rem', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
           <div className="metric-row" style={{ color: 'var(--success)', marginTop: 0 }}>
             <Activity size={18} />
             <span style={{ marginLeft: '0.5rem', fontWeight: 600 }}>System Ready</span>
           </div>
           <div className="metric-row" style={{ marginTop: 0 }}>
             <Server size={18} />
-            <span style={{ marginLeft: '0.5rem' }}>{Object.keys(agents).length} Racks Active</span>
+            <span style={{ marginLeft: '0.5rem' }}>{Object.keys(agents).length} {t.racks}</span>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {view === 'dashboard' ? (
-        <>
-          <div style={{ padding: '1rem 2rem', background: 'rgba(0,0,0,0.2)', marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-             <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 700 }}>Filter Racks</span>
-             <input 
-               type="text" 
-               placeholder="Search Rack ID (e.g. RACK-001)" 
-               value={searchQuery}
-               onChange={(e) => setSearchQuery(e.target.value)}
-               style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem 1rem', color: 'white' }}
-             />
-          </div>
-          <main className="rack-grid">
-            {Object.entries(agents)
-              .filter(([id]) => id.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map(([id, agent]) => (
-          <div 
-            key={id} 
-            className={`rack-card ${selectedRack === id ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedRack(id);
-              setIsTaskPanelOpen(true);
-            }}
-          >
-            <div className="rack-header">
-              <div className="rack-id">{id}</div>
-              <div className={`status-badge status-${agent.status.toLowerCase()}`}>
-                {agent.status}
-              </div>
+        {view === 'dashboard' ? (
+          <div style={{ padding: '2rem' }}>
+            <div style={{ background: 'rgba(0,0,0,0.2)', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center', padding: '0.75rem 1.5rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+              <input 
+                type="text" 
+                placeholder="Search Rack ID (e.g. RACK-001)" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ flex: 1, background: 'transparent', border: 'none', color: 'white', outline: 'none' }}
+              />
             </div>
             
-            <div className="metric-row">
-              <span>Power Load</span>
-              <span style={{ color: (agent.info?.load || 0) > 80 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
-                {Math.round(agent.info?.load || 0)}%
-              </span>
-            </div>
+            <main className="rack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+              {Object.entries(agents)
+                .filter(([id]) => id.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map(([id, agent]) => (
+                  <div 
+                    key={id} 
+                    className={`rack-card ${selectedRack === id ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedRack(id);
+                      setIsTaskPanelOpen(true);
+                    }}
+                    style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '1.25rem', border: '1px solid var(--border)', padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }}
+                  >
+                    <div className="rack-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                      <div className="rack-id" style={{ fontSize: '1.1rem', fontWeight: 800 }}>{id}</div>
+                      <div className={`status-badge status-${agent.status.toLowerCase()}`}>
+                        {agent.status}
+                      </div>
+                    </div>
+                    
+                    <div className="metric-row">
+                      <span>Power Load</span>
+                      <span style={{ color: (agent.info?.load || 0) > 80 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
+                        {Math.round(agent.info?.load || 0)}%
+                      </span>
+                    </div>
 
-            <div className="metric-row">
-              <span>DUT Topology</span>
-              <span>{agent.info?.dut_count || 10} Nodes</span>
-            </div>
-            
-            <div className="dut-grid">
-              {[...Array(agent.info?.dut_count || 10)].map((_, i) => {
-                const dutId = `DUT-${(i+1).toString().padStart(2, '0')}`;
-                const status = agent.info?.dut_summary?.[dutId] || 'IDLE';
-                return (
-                  <div key={i} className={`dut-dot ${status.toLowerCase()}`} title={`${dutId}: ${status}`}>
-                    <span style={{ fontSize: '0.65rem', marginLeft: '8px', color: 'var(--text-muted)', fontWeight: 600 }}>{dutId}</span>
+                    <div className="dut-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', marginTop: '1rem' }}>
+                      {[...Array(agent.info?.dut_count || 10)].map((_, i) => {
+                        const dutId = `DUT-${(i+1).toString().padStart(2, '0')}`;
+                        const status = agent.info?.dut_summary?.[dutId] || 'IDLE';
+                        return (
+                          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                            <div className={`dut-dot ${status.toLowerCase()}`} title={`${dutId}: ${status}`} style={{ width: '12px', height: '12px' }} />
+                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{i+1}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-
-            <div style={{ marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>
-              Uptime: {new Date(agent.last_seen).toLocaleTimeString()}
-            </div>
+                ))}
+            </main>
           </div>
-        ))}
-
-        {Object.keys(agents).length === 0 && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '6rem', background: 'rgba(0,0,0,0.1)', borderRadius: '1rem' }}>
-            <Server size={64} style={{ marginBottom: '1.5rem', opacity: 0.2 }} />
-            <p style={{ color: 'var(--text-muted)' }}>Searching for Rack Manager Agents...</p>
-          </div>
-        )}
-      </main>
-      </>
-      ) : (
-        <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', gap: '2rem', height: 'calc(100vh - 150px)' }}>
+        ) : (
+          <div style={{ padding: '2rem', flex: 1, display: 'flex', gap: '2rem', overflow: 'hidden' }}>
             <div style={{ width: '300px', background: 'rgba(15, 23, 42, 0.4)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Library</h3>
-                <button 
-                  onClick={handleCreateNewBlank}
-                  style={{ background: 'var(--success)', border: 'none', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
-                >
-                  + NEW
-                </button>
+                <h3 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{t.testPlans}</h3>
+                <button onClick={handleCreateNewBlank} style={{ background: 'var(--success)', border: 'none', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>+ NEW</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto', flex: 1 }}>
                 {availableModels.map(model => (
-                  <button 
-                    key={model}
-                    onClick={() => setSelectedModel(model)}
-                    style={{ 
-                      textAlign: 'left',
-                      padding: '0.8rem 1rem', 
-                      borderRadius: '0.75rem', 
-                      background: selectedModel === model ? 'var(--accent)' : 'rgba(255,255,255,0.03)',
-                      border: '1px solid',
-                      borderColor: selectedModel === model ? 'var(--accent)' : 'transparent',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: selectedModel === model ? 700 : 400,
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    {model}.json
-                  </button>
+                  <button key={model} onClick={() => setSelectedModel(model)} style={{ textAlign: 'left', padding: '0.8rem 1rem', borderRadius: '0.75rem', background: selectedModel === model ? 'var(--accent)' : 'rgba(255,255,255,0.03)', border: '1px solid', borderColor: selectedModel === model ? 'var(--accent)' : 'transparent', color: 'white', cursor: 'pointer', fontSize: '0.9rem', fontWeight: selectedModel === model ? 700 : 400 }}>{model}.json</button>
                 ))}
               </div>
             </div>
-            
-            <ModelEditor 
-              key={selectedModel}
-              selectedModel={selectedModel} 
-              onSave={handleSaveModel}
-              onDelete={handleDeleteModel}
-              onCreate={handleCreateModel}
-            />
+            <ModelEditor key={selectedModel} selectedModel={selectedModel} onSave={handleSaveModel} onDelete={handleDeleteModel} onCreate={handleCreateModel} />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className={`task-panel ${isTaskPanelOpen ? 'open' : ''}`}>
+      {/* Task Panel Drawer */}
+      <div className={`task-panel ${isTaskPanelOpen ? 'open' : ''}`} style={{ width: '400px', background: 'var(--bg-card)', borderLeft: '1px solid var(--border)', padding: '2rem', position: 'fixed', right: isTaskPanelOpen ? 0 : '-400px', top: 0, bottom: 0, zIndex: 100, transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-          <h2 style={{ fontSize: '1.5rem' }}>Rack Control</h2>
-          <button onClick={() => setIsTaskPanelOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <h2 style={{ fontSize: '1.5rem' }}>{t.racks} {t.status}</h2>
+          <button onClick={() => setIsTaskPanelOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', width: '32px', height: '32px' }}>✕</button>
         </div>
 
-        <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '0.5rem', marginBottom: '2rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Active Target</span>
-          <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>{selectedRack}</div>
+        <div style={{ padding: '1.25rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '1rem', marginBottom: '2rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Target: {selectedRack}</span>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+             <button onClick={() => handleScanBarcode(selectedRack!, "DUT-01")} style={{ flex: 1, background: 'var(--success)', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 700, cursor: 'pointer' }}>Scan & Start Auto-Flow</button>
+          </div>
         </div>
 
         <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.5rem' }}>Device Model</label>
-            <select 
-            value={selectedModel} 
-            onChange={(e) => setSelectedModel(e.target.value)}
-            style={{ 
-              width: '100%', 
-              background: 'rgba(15, 23, 42, 0.8)', 
-              border: '1px solid var(--border)', 
-              color: 'white', 
-              padding: '0.75rem', 
-              borderRadius: '0.5rem',
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            {availableModels.map(model => (
-              <option key={model} value={model}>{model}</option>
-            ))}
+          <label style={{ display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.5rem' }}>{t.testPlans}</label>
+          <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} style={{ width: '100%', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid var(--border)', color: 'white', padding: '0.75rem', borderRadius: '0.5rem', outline: 'none' }}>
+            {availableModels.map(model => (<option key={model} value={model}>{model}</option>))}
           </select>
         </div>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <button className="btn btn-primary" onClick={() => handleLaunchTask('OS_INSTALL')}>
-            <Cpu size={18} /> Deploy OS
-          </button>
-          <button className="btn btn-primary" onClick={() => handleLaunchTask('FW_UPDATE')}>
-            <Play size={18} /> Update Firmware
-          </button>
-          <button className="btn btn-primary" onClick={() => handleLaunchTask('FUNCTION_TEST')}>
-            <Play size={18} /> Run Function Test
-          </button>
-          <button className="btn btn-primary" onClick={() => handleLaunchTask('BURN_IN')}>
-            <Activity size={18} /> Start Burn-in
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <button className="btn btn-primary" onClick={() => handleLaunchTask('OS_INSTALL')}><Cpu size={18} /> Deploy OS</button>
+          <button className="btn btn-primary" onClick={() => handleLaunchTask('FW_UPDATE')}><Play size={18} /> Update Firmware</button>
+          <button className="btn btn-primary" onClick={() => handleLaunchTask('FUNCTION_TEST')}><Play size={18} /> Run Function Test</button>
+          <button className="btn btn-primary" onClick={() => handleLaunchTask('BURN_IN')}><Activity size={18} /> Start Burn-in</button>
         </div>
 
         <div style={{ marginTop: '3.5rem' }}>
-          <h3 style={{ fontSize: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Task Monitor</h3>
+          <h3 style={{ fontSize: '0.9rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>{t.activeTasks}</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {Object.values(tasks).filter(t => t.rack_id === selectedRack).slice(-3).reverse().map(task => (
               <div key={task.task_id} style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{task.task_id}</span>
-                  <span style={{ 
-                    fontSize: '0.75rem', 
-                    fontWeight: 800,
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: '4px',
-                    background: task.status === 'SUCCESS' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                    color: task.status === 'SUCCESS' ? 'var(--success)' : 'var(--accent)' 
-                  }}>{task.status}</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '4px', background: task.status === 'SUCCESS' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: task.status === 'SUCCESS' ? 'var(--success)' : 'var(--accent)' }}>{task.status}</span>
                 </div>
-                <div className="task-progress-bar">
-                  <div className="task-progress-inner" style={{ width: `${task.progress}%` }} />
-                </div>
-                <div style={{ marginTop: '0.75rem', color: 'var(--text-main)', fontSize: '0.8rem', opacity: 0.9 }}>
-                  {task.message}
-                </div>
+                <div className="task-progress-bar"><div className="task-progress-inner" style={{ width: `${task.progress}%` }} /></div>
+                <div style={{ marginTop: '0.75rem', color: 'var(--text-main)', fontSize: '0.8rem', opacity: 0.9 }}>{task.message}</div>
               </div>
             ))}
           </div>
