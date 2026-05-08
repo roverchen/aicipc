@@ -6,7 +6,7 @@ import axios from 'axios';
 const isDev = window.location.port >= '5173' && window.location.port <= '5176';
 const API_BASE = isDev ? "http://localhost:8000/api/v1" : window.location.origin + "/api/v1";
 const WS_URL = isDev ? "ws://localhost:8000/ws/events" : (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + "/ws/events";
-const API_KEY = "aicipc-secret-2026";
+const API_KEY = import.meta.env.VITE_API_KEY || "aicipc-secret-2026";
 
 interface Agent {
   rack_id: string;

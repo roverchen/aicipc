@@ -63,8 +63,7 @@ def load_test_config(model: Optional[str] = None) -> Dict:
         }
 
 class FunctionTestRunner:
-    async def run(self, task: TaskRequest, update_callback, wait_for_decision):
-        del wait_for_decision
+    async def run(self, task: TaskRequest, update_callback):
         model = task.params.get("model")
         config = load_test_config(model)
         sub_tests = config.get("function_test", [])

@@ -13,7 +13,7 @@ class TaskHandler:
         self.burnin_runner = BurnInRunner()
         self.active_aborts = {} # task_id: bool
 
-    async def execute(self, task: TaskRequest, update_callback, wait_for_decision):
+    async def execute(self, task: TaskRequest, update_callback):
         """Execute a task and call the update_callback with progress"""
         print(f"[*] Task received: {task.task_id} {task.action} for {task.dut_id}")
         print(f"[*] Task params: {task.params}")
@@ -25,7 +25,7 @@ class TaskHandler:
             elif task.action == TaskAction.FW_UPDATE:
                 await self._handle_fw_update(task, update_callback)
             elif task.action == TaskAction.FUNCTION_TEST:
-                await self.function_runner.run(task, update_callback, wait_for_decision)
+                await self.function_runner.run(task, update_callback)
             elif task.action == TaskAction.BURN_IN:
                 await self._handle_burn_in(task, update_callback)
             else:

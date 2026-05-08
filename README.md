@@ -39,9 +39,9 @@
 > [!TIP]
 > 在執行 `FW_UPDATE` 任務時，請在參數中帶入 `firmware_path: "assets/firmware/your_file.bin"`。
 
-### 🚀 2026 生產環境進階需求 (Production Requirements)
+### 🚀 2026 生產環境進階需求 (Production Requirements / Roadmap)
 
-根據最新需求確認文件 (`update.docx`)，系統已針對大規模生產環境進行以下優化與規範：
+以下項目為生產目標與規範，部分尚在開發中（非當前版本完整交付範圍）：
 
 #### 1. 硬體介面與序列通訊 (Serial Mapping)
 單台待測物 (DUT) 包含兩個 Canister，共計 **8 個 COM Port**：
@@ -51,22 +51,23 @@
 *   **開發要點**: 系統需具備處理高達 **2,400 個同步序列連線** (300 DUTs) 的非同步 I/O 處理能力。
 
 #### 2. 自動化流程優化 (Flow Logic)
-*   **刷碼啟動**: 操作員刷入裝置條碼後，系統自動觸發「全自動連續測試」(OS -> FW -> Function -> Burn-in)。
-*   **關鍵字偵測開機**: 取代固定等待時間，系統透過監控 Serial Output 中的「關鍵字串」來精準判斷裝置重開機是否完成。
+*   **刷碼啟動**: 規劃中。操作員刷入裝置條碼後，自動觸發「全自動連續測試」(OS -> FW -> Function -> Burn-in)。
+*   **關鍵字偵測開機**: 已有流程框架；目前版本為模擬關鍵字偵測，正式版將接入實際 Serial Output 來源。
 
 #### 3. 資料處理與安全性 (Data & Security)
-*   **永久保存與備份**: 所有測試日誌與稽核日誌須**永久保留**，並具備自動備份機制。
-*   **MAC Address 唯一性校驗**:
-    *   讀取到 MAC Address 時需即時查詢資料庫。
-    *   若**重複**存在，系統將自動判定該項測試為 **Fail**。
-*   **權限開放**: 稽核日誌的查詢權限除 ADMIN 外，現已開放給 **OPERATOR** 角色。
-*   **越南語系支援**: 系統界面支援 **中文、英文、越南文** 三種語系。
+*   **永久保存與備份**: 長期目標，待補自動備份策略與排程。
+*   **MAC Address 唯一性校驗**: 已提供 `/api/v1/verify_mac` 介面做重複檢查。
+*   **權限開放**: 角色型存取控制（ADMIN/OPERATOR）為規劃中項目。
+*   **越南語系支援**: Dashboard 已支援中文、英文、越南文切換。
 
 ---
 
 ### ⚙️ 環境變數 (Environment Variables)
-*   **功能測試 (Function Test)**：自動執行自定義測試套件。具備 **Auto-Skip** 容錯機制，子項目失敗時自動記錄並跳過，不阻塞流程；Dashboard 會持續顯示最新進度與當前 PASS/FAIL 統計，最後匯總 **完測摘要報告**。
-*   **燒機測試 (Burn-in Test)**：高負載壓力測試。支援 **每一小時定時回報**，並監控 CPU 溫度。當超過閾值（如 95°C）時，由 BMC 執行 **強制斷電**。
+*   `API_KEY`: Control Plane / Agent API 驗證金鑰（預設 `aicipc-secret-2026`）。
+*   `CONTROL_PLANE_URL`: Agent 連線的 Control Plane URL（預設 `http://localhost:8000`）。
+*   `HEARTBEAT_INTERVAL_SECONDS`: Agent 心跳間隔秒數（預設 `2`）。
+*   `DUT_COUNT`: 每個 Agent 管理的 DUT 數量（預設 `10`）。
+*   `VITE_API_KEY`: 前端呼叫受保護 API 時使用的金鑰。
 
 ### 技術比較表
 
@@ -226,6 +227,7 @@ docker-compose up --build
 ```
 *   **持久化**: 資料庫檔案 `aicipc.db` 自動掛載。
 *   **安全性**: 系統通訊受 `X-API-KEY` 保護。
+*   **水平擴展**: 可用 `docker compose up --build --scale rack-manager-1=30` 進行多 Agent 壓測（建議改為模板化 service 命名後再正式使用）。
 
 ---
 

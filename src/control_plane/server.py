@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Generator
 from contextlib import asynccontextmanager
 from src.common.schema import (
     AgentStatus, TelemetryData, TaskRequest, TaskUpdate, TaskStatus,
-    DecisionRequest, DecisionType, CommonResponse, RegisterRequest, HeartbeatRequest
+    CommonResponse, RegisterRequest, HeartbeatRequest
 )
 from src.common.database import init_db, SessionLocal, AgentModel, TaskModel, TelemetryModel
 import uuid
@@ -196,41 +196,6 @@ async def update_task_status(update: TaskUpdate, x_api_key: str = Header(...), d
         await notify_operator("Task Failed", f"Task {update.task_id} failed: {update.message}", level="ERROR")
 
     return CommonResponse(success=True, message="Status updated")
-
-@app.post("/api/v1/tasks/{task_id}/decision", response_model=CommonResponse)
-async def handle_task_decision(task_id: str, req: DecisionRequest, x_api_key: str = Header(...), db: SessionLocal = Depends(get_db)):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="Invalid API Key")
-
-    task = db.query(TaskModel).filter(TaskModel.task_id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    # Store decision in task params or a dedicated field for the agent to pick up
-    current_params = task.params or {}
-    current_params["operator_decision"] = req.decision
-    task.params = current_params
-    task.status = TaskStatus.RUNNING # Set back to running so agent sees the decision
-    task.message = f"Operator decided to {req.decision}. Resuming..."
-    
-    db.commit()
-    return CommonResponse(success=True, message=f"Decision {req.decision} recorded")
-
-@app.post("/api/v1/tasks/{task_id}/decision/consume", response_model=CommonResponse)
-async def consume_task_decision(task_id: str, x_api_key: str = Header(...), db: SessionLocal = Depends(get_db)):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="Invalid API Key")
-
-    task = db.query(TaskModel).filter(TaskModel.task_id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    params = task.params or {}
-    if "operator_decision" in params:
-        params.pop("operator_decision", None)
-        task.params = params
-        db.commit()
-    return CommonResponse(success=True, message="Decision consumed")
 
 @app.get("/api/v1/tasks/{task_id}")
 async def get_task_status(task_id: str, db: SessionLocal = Depends(get_db)):
