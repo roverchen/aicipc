@@ -27,7 +27,7 @@
 *   支援 **SHA-256 Checksum** 驗證與分階段的版本刷新，避免檔案毀損導致裝置變磚。
 
 ### 3. 測試引擎 (Test Engine)
-*   **功能測試 (Function Test)**：自動執行自定義測試套件。具備 **Auto-Skip** 容錯機制，子項目失敗時自動記錄並跳過，最後匯總 **完測摘要報告**。
+*   **功能測試 (Function Test)**：自動執行自定義測試套件。具備 **Auto-Skip** 容錯機制，子項目失敗時自動記錄並跳過，不阻塞流程；Dashboard 會持續顯示最新進度與當前 PASS/FAIL 統計，最後匯總 **完測摘要報告**。
 *   **燒機測試 (Burn-in Test)**：高負載壓力測試。支援 **每一小時定時回報**，並監控 CPU 溫度。當超過閾值（如 95°C）時，由 BMC 執行 **強制斷電**。
 
 ### 技術比較表
@@ -73,12 +73,102 @@ python3 -m src.rack_manager.test_task RACK-001 DUT-01 FUNCTION_TEST --params mod
 
 ---
 
+## 任務參數與實機串接範例 | Runtime Parameters & Integration Examples
+
+以下參數可透過 `TaskRequest.params` 下發，讓系統在同一套流程中切換模擬/實機模式。
+
+### A. OS 安裝參數（PXE / rshim / BMC）
+* `model`: 機種名稱（對應 `configs/test_suites/*.json`）
+* `rshim`: `true/false`，強制走 rshim 路徑
+* `bmc_set_boot_cmd`: 設定開機順序指令（例如 `ipmitool` / `redfishtool`）
+* `pxe_boot_cmd`: PXE 啟動指令
+* `rshim_push_cmd`: rshim 映像推送指令
+
+範例（PXE）：
+```json
+{
+  "task_id": "task-os-001",
+  "rack_id": "RACK-001",
+  "dut_id": "DUT-01",
+  "action": "OS_INSTALL",
+  "params": {
+    "model": "model_pro_server",
+    "bmc_set_boot_cmd": "ipmitool -I lanplus -H 10.10.1.21 -U admin -P '***' chassis bootdev pxe",
+    "pxe_boot_cmd": "echo 'PXE boot request sent for DUT-01'"
+  }
+}
+```
+
+範例（rshim/Bluefield）：
+```json
+{
+  "task_id": "task-os-002",
+  "rack_id": "RACK-002",
+  "dut_id": "DUT-01",
+  "action": "OS_INSTALL",
+  "params": {
+    "model": "bluefield_dpu",
+    "rshim": "true",
+    "rshim_push_cmd": "cat /opt/images/bf-boot.img > /dev/rshim0/boot"
+  }
+}
+```
+
+### B. 韌體更新參數（含 SHA-256 驗證）
+* `firmware_path`: 韌體檔絕對路徑
+* `sha256`: 期望 SHA-256（必須與檔案實際值一致）
+* `model`: 機種名稱
+
+範例：
+```json
+{
+  "task_id": "task-fw-001",
+  "rack_id": "RACK-001",
+  "dut_id": "DUT-01",
+  "action": "FW_UPDATE",
+  "params": {
+    "model": "model_pro_server",
+    "firmware_path": "/opt/fw/bios_v2.8.1.bin",
+    "sha256": "3e7a8b3d1d7ec5b4d8cf2f95e5f8feecf0d7dc0f3a0dca193a9f77b0d4a4d8ee"
+  }
+}
+```
+
+### C. 燒機測試參數（過熱保護與回報週期）
+* `model`: 機種名稱
+* `simulate_overheat`: `true/false`（測試用）
+* `bmc_poweroff_cmd`: 超溫時執行的 BMC 強制斷電命令
+* `report_interval_seconds`: 開發/驗證用回報秒數；生產建議保持 3600（每小時）
+
+範例：
+```json
+{
+  "task_id": "task-burn-001",
+  "rack_id": "RACK-001",
+  "dut_id": "DUT-01",
+  "action": "BURN_IN",
+  "params": {
+    "model": "model_pro_server",
+    "simulate_overheat": "false",
+    "bmc_poweroff_cmd": "ipmitool -I lanplus -H 10.10.1.21 -U admin -P '***' chassis power off",
+    "report_interval_seconds": "3600"
+  }
+}
+```
+
+### D. 功能測試行為（Auto-Skip + Dashboard 查核 + 完測通知）
+* 子測項失敗時會自動略過並持續執行。
+* 每一步都會透過 `/api/v1/tasks/update` 寫入最新狀態，Dashboard 可即時查核。
+* 完測時會產生摘要（成功數/總數/失敗項目）並由控制平面發送通知訊息給測試者（`Function Test Summary`）。
+
+---
+
 ## 快速開始與開發階段 | Getting Started & Development Phases
 
 ### Phase 1: 基礎環境與服務啟動
 1. **安裝依賴**: `pip install fastapi uvicorn httpx pydantic sqlalchemy typer rich`
-2. **啟動控制平面 (Server)**: `python3 -m src.control_plane.server`
-3. **啟動 Rack Manager Agent (模擬終端)**: `python3 -m src.rack_manager.agent`
+2. **啟動控制平面 (Server)**: `API_KEY=<your-key> python3 -m src.control_plane.server`
+3. **啟動 Rack Manager Agent (模擬終端)**: `API_KEY=<your-key> HEARTBEAT_INTERVAL_SECONDS=2 python3 -m src.rack_manager.agent`
 
 ### Phase 2: 視覺化介面與 CLI 工具
 1. **Web Dashboard**:

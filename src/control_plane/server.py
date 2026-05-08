@@ -15,7 +15,7 @@ from src.common.database import init_db, SessionLocal, AgentModel, TaskModel
 import uuid
 
 # Security Configuration
-API_KEY = "aicipc-secret-2026"
+API_KEY = os.getenv("API_KEY", "aicipc-secret-2026")
 
 # WebSocket connections
 active_connections: List[WebSocket] = []
@@ -175,11 +175,14 @@ async def update_task_status(update: TaskUpdate, x_api_key: str = Header(...), d
 
     # Send notifications on completion or failure
     if update.status == TaskStatus.SUCCESS:
+        if task.action == "FUNCTION_TEST":
+            await notify_operator(
+                "Function Test Summary",
+                f"[Tester Notify] Task {update.task_id} on {task.rack_id}/{task.dut_id}: {update.message}"
+            )
         await notify_operator("Task Completed", f"Task {update.task_id} on {task.rack_id}/{task.dut_id} finished successfully.")
     elif update.status == TaskStatus.FAILED:
         await notify_operator("Task Failed", f"Task {update.task_id} failed: {update.message}", level="ERROR")
-    elif update.status == TaskStatus.WAITING_DECISION:
-        await notify_operator("Action Required", f"Task {update.task_id} paused due to sub-test failure. Waiting for operator decision.", level="WARNING")
 
     return CommonResponse(success=True, message="Status updated")
 
@@ -201,6 +204,22 @@ async def handle_task_decision(task_id: str, req: DecisionRequest, x_api_key: st
     
     db.commit()
     return CommonResponse(success=True, message=f"Decision {req.decision} recorded")
+
+@app.post("/api/v1/tasks/{task_id}/decision/consume", response_model=CommonResponse)
+async def consume_task_decision(task_id: str, x_api_key: str = Header(...), db: SessionLocal = Depends(get_db)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+
+    task = db.query(TaskModel).filter(TaskModel.task_id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    params = task.params or {}
+    if "operator_decision" in params:
+        params.pop("operator_decision", None)
+        task.params = params
+        db.commit()
+    return CommonResponse(success=True, message="Decision consumed")
 
 @app.get("/api/v1/tasks/{task_id}")
 async def get_task_status(task_id: str, db: SessionLocal = Depends(get_db)):

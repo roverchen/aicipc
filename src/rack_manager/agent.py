@@ -22,7 +22,8 @@ class RackManagerAgent:
         self.ip_address = self._get_ip()
         self.task_handler = TaskHandler(rack_id, CONTROL_PLANE_URL)
         self.headers = {"X-API-KEY": API_KEY}
-        self.dut_count = 10
+        self.dut_count = int(os.getenv("DUT_COUNT", "10"))
+        self.heartbeat_interval_seconds = float(os.getenv("HEARTBEAT_INTERVAL_SECONDS", "2"))
         self.dut_status = {f"DUT-{i+1:02d}": DUTStatus.IDLE for i in range(self.dut_count)}
 
     def _get_ip(self):
@@ -78,6 +79,10 @@ class RackManagerAgent:
                 params = data.get("params", {})
                 decision = params.get("operator_decision")
                 if decision:
+                    await client.post(
+                        f"{CONTROL_PLANE_URL}/api/v1/tasks/{task_id}/decision/consume",
+                        headers=self.headers
+                    )
                     return DecisionType(decision)
             except Exception as e:
                 print(f"[!] Check decision failed for {task_id}: {e}")
@@ -114,7 +119,7 @@ class RackManagerAgent:
         await self.register()
         while True:
             await self.send_heartbeat()
-            await asyncio.sleep(10)
+            await asyncio.sleep(self.heartbeat_interval_seconds)
 
 if __name__ == "__main__":
     import random

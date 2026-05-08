@@ -2,10 +2,11 @@ import httpx
 import asyncio
 import uuid
 import sys
+import os
 from src.common.schema import TaskRequest, TaskAction
 
-CONTROL_PLANE_URL = "http://localhost:8000"
-API_KEY = "aicipc-secret-2026"
+CONTROL_PLANE_URL = os.getenv("CONTROL_PLANE_URL", "http://localhost:8000")
+API_KEY = os.getenv("API_KEY", "aicipc-secret-2026")
 
 async def submit_and_monitor(rack_id: str, dut_id: str, action: TaskAction):
     task_id = f"task-{uuid.uuid4().hex[:8]}"

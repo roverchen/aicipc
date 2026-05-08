@@ -249,7 +249,7 @@ nav button {
 }
 
 nav button:hover {
-  color: var(--accent) !absolute;
+  color: var(--accent) !important;
   opacity: 0.8;
 }
 

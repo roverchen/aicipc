@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const API_BASE = window.location.origin + "/api/v1";
 const WS_URL = (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + "/ws/events";
-const API_KEY = "aicipc-secret-2026";
+const API_KEY = import.meta.env.VITE_API_KEY || "aicipc-secret-2026";
 
 interface Agent {
   rack_id: string;
@@ -122,20 +122,6 @@ function App() {
       setNotification(`Model ${selectedModel} saved successfully`);
     } catch (err) {
       alert("Invalid JSON or save failed");
-    }
-  };
-
-  const handleDecision = async (taskId: string, decision: string) => {
-    try {
-      await axios.post(`${API_BASE}/tasks/${taskId}/decision`, {
-        task_id: taskId,
-        decision: decision
-      }, {
-        headers: { "X-API-KEY": API_KEY }
-      });
-      setNotification(`Decision ${decision} sent for task ${taskId}`);
-    } catch (err) {
-      alert("Failed to send decision");
     }
   };
 
@@ -353,6 +339,9 @@ function App() {
           <button className="btn btn-primary" onClick={() => handleLaunchTask('FW_UPDATE')}>
             <Play size={18} /> Update Firmware
           </button>
+          <button className="btn btn-primary" onClick={() => handleLaunchTask('FUNCTION_TEST')}>
+            <Play size={18} /> Run Function Test
+          </button>
           <button className="btn btn-primary" onClick={() => handleLaunchTask('BURN_IN')}>
             <Activity size={18} /> Start Burn-in
           </button>
@@ -380,25 +369,6 @@ function App() {
                 <div style={{ marginTop: '0.75rem', color: 'var(--text-main)', fontSize: '0.8rem', opacity: 0.9 }}>
                   {task.message}
                 </div>
-
-                {task.status === 'WAITING_DECISION' && (
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', flex: 1, background: 'var(--accent)' }}
-                      onClick={() => handleDecision(task.task_id, 'RETRY')}
-                    >
-                      Retry Step
-                    </button>
-                    <button 
-                      className="btn" 
-                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', flex: 1 }}
-                      onClick={() => handleDecision(task.task_id, 'SKIP')}
-                    >
-                      Skip Step
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>

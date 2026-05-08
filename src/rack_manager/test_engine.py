@@ -64,6 +64,7 @@ def load_test_config(model: Optional[str] = None) -> Dict:
 
 class FunctionTestRunner:
     async def run(self, task: TaskRequest, update_callback, wait_for_decision):
+        del wait_for_decision
         model = task.params.get("model")
         config = load_test_config(model)
         sub_tests = config.get("function_test", [])
@@ -84,11 +85,13 @@ class FunctionTestRunner:
             # Simulate random failure
             if random.random() < 0.15: # Demo failure rate
                 test_results.append({"name": name, "status": "FAIL"})
+                passed_count = sum(1 for r in test_results if r["status"] == "PASS")
+                fail_count = sum(1 for r in test_results if r["status"] == "FAIL")
                 await update_callback(TaskUpdate(
                     task_id=task.task_id,
                     status=TaskStatus.RUNNING,
                     progress=progress,
-                    message=f"Sub-test {name} FAILED! Auto-skipping to next item..."
+                    message=f"Sub-test {name} FAILED. Auto-skip enabled. Live result PASS={passed_count}, FAIL={fail_count}."
                 ))
             else:
                 test_results.append({"name": name, "status": "PASS"})
@@ -118,9 +121,9 @@ class BurnInRunner:
         model = task.params.get("model")
         config = load_test_config(model).get("burn_in", {})
         
-        # Requirement: Report result every 1 hour.
-        # Use config values, with defaults as fallback
-        HOURLY_INTERVAL = config.get("report_interval_seconds", 30)
+        # Requirement: Report result every 1 hour in production.
+        # For development/demo, users may override with report_interval_seconds in params/config.
+        HOURLY_INTERVAL = int(task.params.get("report_interval_seconds", config.get("report_interval_seconds", 3600)))
         TOTAL_HOURS = config.get("total_hours", 4)
         
         start_time = datetime.utcnow()
@@ -157,5 +160,5 @@ class BurnInRunner:
             task_id=task.task_id,
             status=TaskStatus.SUCCESS,
             progress=100,
-            message="Burn-in test completed successfully after 4 hours."
+            message=f"Burn-in test completed successfully after {TOTAL_HOURS} hours."
         ))
