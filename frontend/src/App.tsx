@@ -296,6 +296,100 @@ const TRANSLATIONS: Record<string, any> = {
   }
 };
 
+// Professional Scanner Modal Component
+const ScannerModal = ({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  value, 
+  setValue, 
+  inputRef,
+  rackId,
+  dutId
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onSubmit: (e: React.FormEvent) => void,
+  value: string,
+  setValue: (v: string) => void,
+  inputRef: React.RefObject<HTMLInputElement>,
+  rackId: string | null,
+  dutId: string | null
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div style={{ 
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+      background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)',
+      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000
+    }}>
+      <div style={{ 
+        width: '600px', background: '#0f172a', borderRadius: '2rem', 
+        padding: '3rem', border: '2px solid var(--accent)',
+        boxShadow: '0 0 40px rgba(59, 130, 246, 0.3)',
+        textAlign: 'center'
+      }}>
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{ display: 'inline-flex', padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '1rem', marginBottom: '1.5rem' }}>
+            <Activity size={32} color="var(--accent)" />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '0.5rem' }}>Ready to Scan</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Please pull the trigger for <strong>{rackId} : {dutId}</strong></p>
+        </div>
+
+        <form onSubmit={onSubmit}>
+          <div style={{ position: 'relative', marginBottom: '2rem' }}>
+            <input 
+              ref={inputRef}
+              type="text"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="Waiting for barcode..."
+              autoComplete="off"
+              style={{ 
+                width: '100%', background: 'rgba(0,0,0,0.4)', 
+                border: '2px solid rgba(59, 130, 246, 0.3)', 
+                borderRadius: '1rem', padding: '1.5rem', 
+                fontSize: '1.5rem', textAlign: 'center', color: 'white',
+                fontFamily: 'monospace', outline: 'none',
+                boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
+                transition: 'all 0.3s'
+              }}
+              onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+              onBlur={(e) => e.target.style.borderColor = 'rgba(59, 130, 246, 0.3)'}
+            />
+            {/* Glowing effect inside input */}
+            <div style={{ 
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
+              pointerEvents: 'none', borderRadius: '1rem',
+              boxShadow: value ? '0 0 15px rgba(59, 130, 246, 0.2)' : 'none'
+            }} />
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button 
+              type="button"
+              onClick={onClose}
+              style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '1rem', borderRadius: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+            >Cancel</button>
+            <button 
+              type="submit"
+              disabled={!value}
+              style={{ flex: 2, background: 'var(--accent)', border: 'none', color: 'white', padding: '1rem', borderRadius: '0.75rem', fontWeight: 800, cursor: 'pointer', opacity: value ? 1 : 0.5 }}
+            >Confirm MAC</button>
+          </div>
+        </form>
+
+        <div style={{ marginTop: '2rem', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 8px var(--success)' }} />
+          Scanner Active (Keyboard Mode)
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   const [lang, setLang] = useState<'en' | 'zh' | 'vi'>('zh');
   const t = TRANSLATIONS[lang];
@@ -310,6 +404,9 @@ function App() {
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [view, setView] = useState<'dashboard' | 'models'>('dashboard');
   const [searchQuery, setSearchQuery] = useState("");
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scanValue, setScanValue] = useState("");
+  const scannerInputRef = useRef<HTMLInputElement>(null);
   const ws = useRef<WebSocket | null>(null);
 
   // Auto-clear notifications
@@ -406,9 +503,24 @@ function App() {
     }
   };
 
-  const handleScanBarcode = async (rack_id: string, dut_id: string) => {
-    const mac = prompt(`[${dut_id}] Please scan or enter MAC Address:`);
-    if (!mac) return;
+  const handleScanBarcode = (rack_id: string, dut_id: string) => {
+    setSelectedRack(rack_id);
+    setSelectedDut(dut_id);
+    setScanValue("");
+    setIsScannerOpen(true);
+    // Autofocus
+    setTimeout(() => scannerInputRef.current?.focus(), 100);
+  };
+
+  const handleScanSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scanValue) return;
+    
+    const mac = scanValue.trim();
+    const rack_id = selectedRack!;
+    const dut_id = selectedDut!;
+    
+    setIsScannerOpen(false);
 
     try {
       // 1. Verify MAC uniqueness (Production Req)
@@ -754,6 +866,18 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Professional Scanner Modal */}
+      <ScannerModal 
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onSubmit={handleScanSubmit}
+        value={scanValue}
+        setValue={setScanValue}
+        inputRef={scannerInputRef}
+        rackId={selectedRack}
+        dutId={selectedDut}
+      />
     </div>
   );
 }
