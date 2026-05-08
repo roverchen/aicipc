@@ -1,0 +1,40 @@
+{
+  "function_test": [
+    {
+      "name": "CPU_Inventory_Check",
+      "progress": 10,
+      "command": "lscpu | grep -E 'Model name|CPU\\(s\\):|Thread'"
+    },
+    {
+      "name": "Memory_Capacity_Verify",
+      "progress": 25,
+      "command": "dmidecode -t memory | grep -E 'Size|Speed|Part Number' | grep -v 'No Module'"
+    },
+    {
+      "name": "Storage_Health_Quick_Scan",
+      "progress": 40,
+      "command": "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT && smartctl --scan"
+    },
+    {
+      "name": "Network_Interface_Link_Check",
+      "progress": 60,
+      "command": "ip link show up && ethtool eth0 | grep Speed"
+    },
+    {
+      "name": "BMC_IPMI_Sensor_Audit",
+      "progress": 80,
+      "command": "ipmitool sdr list | grep -E 'Temp|Fan|Volt'"
+    },
+    {
+      "name": "Quick_System_Stability_Pulse",
+      "progress": 95,
+      "command": "stress-ng --cpu 4 --timeout 10s --metrics-brief"
+    }
+  ],
+  "burn_in": {
+    "command": "stress-ng --cpu 0 --io 2 --vm 1 --vm-bytes 1G --matrix 1 --timeout 4h",
+    "total_hours": 4,
+    "thermal_threshold": 90.0,
+    "report_interval_seconds": 3600
+  }
+}
