@@ -21,7 +21,10 @@ class RackManagerAgent:
         self.rack_id = rack_id
         self.ip_address = self._get_ip()
         self.task_handler = TaskHandler(rack_id, CONTROL_PLANE_URL)
-        self.headers = {"X-API-KEY": API_KEY}
+        self.headers = {
+            "X-API-KEY": API_KEY,
+            "Content-Type": "application/json"
+        }
         self.dut_count = int(os.getenv("DUT_COUNT", "10"))
         self.heartbeat_interval_seconds = float(os.getenv("HEARTBEAT_INTERVAL_SECONDS", "2"))
         self.dut_status = {f"DUT-{i+1:02d}": DUTStatus.IDLE for i in range(self.dut_count)}
@@ -62,6 +65,9 @@ class RackManagerAgent:
         async with httpx.AsyncClient() as client:
             try:
                 resp = await client.post(f"{CONTROL_PLANE_URL}/api/v1/heartbeat", content=req.model_dump_json(), headers=self.headers)
+                if resp.status_code != 200:
+                    print(f"[!] Heartbeat error ({resp.status_code}): {resp.text}")
+                    return
                 data = resp.json()
                 if data["success"] and "pending_tasks" in data["data"]:
                     for task_data in data["data"]["pending_tasks"]:

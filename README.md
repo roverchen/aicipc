@@ -26,7 +26,20 @@
 *   透過 **BMC/IPMI/Redfish** 介面傳輸二進位檔。
 *   支援 **SHA-256 Checksum** 驗證與分階段的版本刷新，避免檔案毀損導致裝置變磚。
 
-### 3. 測試引擎 (Test Engine)
+### 📁 資產管理與置放路徑 (Asset Management)
+
+為了確保系統能正確讀取相關資源，請依照以下路徑置放檔案：
+
+| 資源類型 | 建議路徑 | 說明 |
+| :--- | :--- | :--- |
+| **測試計畫 (Test Plans)** | `configs/test_suites/*.json` | 定義測試步驟的 JSON，可透過 Dashboard 直接維護。 |
+| **韌體檔案 (Firmware)** | `assets/firmware/` | 放置 `.bin` 或 `.rom` 檔，供 FW_UPDATE 任務使用。 |
+| **系統鏡像 (OS Images)** | `assets/images/` | 放置 `.iso` 或 `.img` 檔，供 OS_INSTALL 任務使用。 |
+
+> [!TIP]
+> 在執行 `FW_UPDATE` 任務時，請在參數中帶入 `firmware_path: "assets/firmware/your_file.bin"`。
+
+### ⚙️ 環境變數 (Environment Variables)
 *   **功能測試 (Function Test)**：自動執行自定義測試套件。具備 **Auto-Skip** 容錯機制，子項目失敗時自動記錄並跳過，不阻塞流程；Dashboard 會持續顯示最新進度與當前 PASS/FAIL 統計，最後匯總 **完測摘要報告**。
 *   **燒機測試 (Burn-in Test)**：高負載壓力測試。支援 **每一小時定時回報**，並監控 CPU 溫度。當超過閾值（如 95°C）時，由 BMC 執行 **強制斷電**。
 

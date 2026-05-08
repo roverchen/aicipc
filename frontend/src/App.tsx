@@ -132,7 +132,7 @@ const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: {
                 <h3 style={{ fontSize: '1rem', color: 'var(--accent)' }}>Function Test Steps</h3>
                 <button 
                   onClick={() => {
-                    const newSteps = [...functionTests, { name: "New Step", progress: 0 }];
+                    const newSteps = [...functionTests, { name: "New Step", progress: 0, command: "echo 'hello'" }];
                     updateConfig({ ...parsed, function_test: newSteps });
                   }}
                   style={{ background: 'var(--success)', border: 'none', color: 'white', padding: '0.3rem 0.8rem', borderRadius: '0.4rem', cursor: 'pointer', fontSize: '0.8rem' }}
@@ -140,39 +140,54 @@ const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {functionTests.map((step: any, idx: number) => (
-                  <div key={idx} style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, width: '20px' }}>{idx + 1}</div>
-                    <input 
-                      value={step.name}
-                      onChange={(e) => {
-                        const newSteps = [...functionTests];
-                        newSteps[idx].name = e.target.value;
-                        updateConfig({ ...parsed, function_test: newSteps });
-                      }}
-                      placeholder="Test Item Name"
-                      style={{ flex: 2, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem 1rem', color: 'white' }}
-                    />
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Progress:</span>
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, width: '20px' }}>{idx + 1}</div>
                       <input 
-                        type="number"
-                        value={step.progress}
+                        value={step.name}
                         onChange={(e) => {
                           const newSteps = [...functionTests];
-                          newSteps[idx].progress = parseInt(e.target.value);
+                          newSteps[idx].name = e.target.value;
                           updateConfig({ ...parsed, function_test: newSteps });
                         }}
-                        style={{ width: '80px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem', color: 'white' }}
+                        placeholder="Test Item Name"
+                        style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem 1rem', color: 'white' }}
                       />
-                      <span style={{ fontSize: '0.8rem' }}>%</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Progress:</span>
+                        <input 
+                          type="number"
+                          value={step.progress}
+                          onChange={(e) => {
+                            const newSteps = [...functionTests];
+                            newSteps[idx].progress = parseInt(e.target.value);
+                            updateConfig({ ...parsed, function_test: newSteps });
+                          }}
+                          style={{ width: '80px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem', color: 'white' }}
+                        />
+                        <span style={{ fontSize: '0.8rem' }}>%</span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const newSteps = functionTests.filter((_: any, i: number) => i !== idx);
+                          updateConfig({ ...parsed, function_test: newSteps });
+                        }}
+                        style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0.5rem' }}
+                      >✕</button>
                     </div>
-                    <button 
-                      onClick={() => {
-                        const newSteps = functionTests.filter((_: any, i: number) => i !== idx);
-                        updateConfig({ ...parsed, function_test: newSteps });
-                      }}
-                      style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0.5rem' }}
-                    >✕</button>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginLeft: '30px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600 }}>CMD:</span>
+                      <input 
+                        value={step.command || ""}
+                        onChange={(e) => {
+                          const newSteps = [...functionTests];
+                          newSteps[idx].command = e.target.value;
+                          updateConfig({ ...parsed, function_test: newSteps });
+                        }}
+                        placeholder="Shell command to execute (e.g. stress-ng --cpu 2)"
+                        style={{ flex: 1, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', padding: '0.4rem 0.8rem', color: 'var(--success)', fontFamily: 'monospace', fontSize: '0.85rem' }}
+                      />
+                    </div>
                   </div>
                 ))}
                 {functionTests.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No test steps defined. Add one to begin.</p>}
@@ -183,6 +198,15 @@ const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: {
             <section style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '1rem', border: '1px solid var(--border)', padding: '1.5rem' }}>
               <h3 style={{ fontSize: '1rem', color: 'var(--accent)', marginBottom: '1.5rem' }}>Burn-in Configuration</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Burn-in Load Command (Background Process)</label>
+                  <input 
+                    value={burnIn.command || ""}
+                    onChange={(e) => updateConfig({ ...parsed, burn_in: { ...burnIn, command: e.target.value } })}
+                    placeholder="Command to run during burn-in (e.g. stress-ng --cpu 0 --io 4)"
+                    style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', padding: '0.75rem 1rem', color: 'var(--success)', fontFamily: 'monospace', fontSize: '0.9rem' }}
+                  />
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Duration (Hours)</label>
                   <input 
@@ -305,8 +329,9 @@ function App() {
         headers: { "X-API-KEY": API_KEY }
       });
       setNotification(`Model ${name} saved successfully`);
-    } catch (err) {
-      alert("Invalid JSON format. Please check your syntax.");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message;
+      alert(`Save failed: ${msg}`);
     }
   };
 
@@ -318,8 +343,9 @@ function App() {
       setAvailableModels(prev => [...new Set([...prev, name])]);
       setSelectedModel(name);
       setNotification(`Model ${name} created`);
-    } catch (err) {
-      alert("Failed to create model");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message;
+      alert(`Create failed: ${msg}`);
     }
   };
 

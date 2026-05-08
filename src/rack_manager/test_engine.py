@@ -73,28 +73,46 @@ class FunctionTestRunner:
         for step in sub_tests:
             name = step.get("name", "Unknown")
             progress = step.get("progress", 0)
+            # Directly use the command from the JSON test plan
+            real_cmd = step.get("command")
             
-            await update_callback(TaskUpdate(
-                task_id=task.task_id,
-                status=TaskStatus.RUNNING,
-                progress=progress,
-                message=f"Executing sub-test: {name}..."
-            ))
-            await asyncio.sleep(2)
-            
-            # Simulate random failure
-            if random.random() < 0.15: # Demo failure rate
-                test_results.append({"name": name, "status": "FAIL"})
-                passed_count = sum(1 for r in test_results if r["status"] == "PASS")
-                fail_count = sum(1 for r in test_results if r["status"] == "FAIL")
+            if real_cmd:
                 await update_callback(TaskUpdate(
-                    task_id=task.task_id,
-                    status=TaskStatus.RUNNING,
-                    progress=progress,
-                    message=f"Sub-test {name} FAILED. Auto-skip enabled. Live result PASS={passed_count}, FAIL={fail_count}."
+                    task_id=task.task_id, status=TaskStatus.RUNNING, progress=progress,
+                    message=f"Running real test: {name} ({real_cmd})"
                 ))
+                # 2. Execute real command
+                proc = await asyncio.create_subprocess_shell(
+                    real_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await proc.communicate()
+                
+                if proc.returncode == 0:
+                    test_results.append({"name": name, "status": "PASS"})
+                    await update_callback(TaskUpdate(
+                        task_id=task.task_id, status=TaskStatus.RUNNING, progress=progress,
+                        message=f"Sub-test {name} PASSED: {stdout.decode().strip()[:50]}..."
+                    ))
+                else:
+                    test_results.append({"name": name, "status": "FAIL"})
+                    await update_callback(TaskUpdate(
+                        task_id=task.task_id, status=TaskStatus.RUNNING, progress=progress,
+                        message=f"Sub-test {name} FAILED: {stderr.decode().strip()[:50]}..."
+                    ))
             else:
-                test_results.append({"name": name, "status": "PASS"})
+                # Fallback to simulation if no command mapped
+                await update_callback(TaskUpdate(
+                    task_id=task.task_id, status=TaskStatus.RUNNING, progress=progress,
+                    message=f"Simulating test: {name}..."
+                ))
+                await asyncio.sleep(2)
+                # Simulate random failure for mock
+                if random.random() < 0.15:
+                    test_results.append({"name": name, "status": "FAIL"})
+                else:
+                    test_results.append({"name": name, "status": "PASS"})
             
             await asyncio.sleep(0.5)
 
@@ -121,40 +139,55 @@ class BurnInRunner:
         model = task.params.get("model")
         config = load_test_config(model).get("burn_in", {})
         
-        # Requirement: Report result every 1 hour in production.
-        # For development/demo, users may override with report_interval_seconds in params/config.
+        # New: Burn-in Command (the actual load generator)
+        burnin_cmd = config.get("command")
+        stress_proc = None
+        
+        if burnin_cmd:
+            print(f"[BurnIn] Starting stress command: {burnin_cmd}")
+            stress_proc = await asyncio.create_subprocess_shell(
+                burnin_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
         HOURLY_INTERVAL = int(task.params.get("report_interval_seconds", config.get("report_interval_seconds", 3600)))
         TOTAL_HOURS = config.get("total_hours", 4)
         
-        start_time = datetime.utcnow()
-        last_report_time = start_time
-        
-        await update_callback(TaskUpdate(
-            task_id=task.task_id,
-            status=TaskStatus.RUNNING,
-            progress=0,
-            message="Burn-in stress testing started..."
-        ))
-
-        for hour in range(1, TOTAL_HOURS + 1):
-            # Simulate testing for "1 hour"
-            elapsed = 0
-            while elapsed < HOURLY_INTERVAL:
-                if check_abort():
-                    print(f"[BurnIn] Aborting task {task.task_id} due to external trigger")
-                    return
-                
-                await asyncio.sleep(2)
-                elapsed += 2
-            
-            progress = (hour / TOTAL_HOURS) * 100
+        try:
+            start_time = datetime.utcnow()
             await update_callback(TaskUpdate(
                 task_id=task.task_id,
                 status=TaskStatus.RUNNING,
-                progress=progress,
-                message=f"Burn-in progress: {hour} hour(s) completed. Health: OK."
+                progress=0,
+                message=f"Burn-in stress testing started... {'(CMD: ' + burnin_cmd + ')' if burnin_cmd else ''}"
             ))
-            last_report_time = datetime.utcnow()
+
+            for hour in range(1, TOTAL_HOURS + 1):
+                elapsed = 0
+                while elapsed < HOURLY_INTERVAL:
+                    if check_abort():
+                        print(f"[BurnIn] Aborting task {task.task_id} due to external trigger")
+                        return
+                    
+                    await asyncio.sleep(2)
+                    elapsed += 2
+                
+                progress = (hour / TOTAL_HOURS) * 100
+                await update_callback(TaskUpdate(
+                    task_id=task.task_id,
+                    status=TaskStatus.RUNNING,
+                    progress=progress,
+                    message=f"Burn-in progress: {hour} hour(s) completed. Health: OK."
+                ))
+        finally:
+            if stress_proc:
+                print(f"[BurnIn] Terminating stress command for task {task.task_id}")
+                try:
+                    stress_proc.terminate()
+                    await stress_proc.wait()
+                except:
+                    pass
 
         await update_callback(TaskUpdate(
             task_id=task.task_id,
