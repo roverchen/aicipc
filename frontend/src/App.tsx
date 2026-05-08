@@ -22,28 +22,42 @@ interface TaskStatus {
   rack_id: string;
 }
 
-const ModelEditor = ({ selectedModel, onSave, onDelete }: { 
+const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: { 
   selectedModel: string, 
-  onSave: (config: any) => Promise<void>,
-  onDelete: () => Promise<void>
+  onSave: (name: string, configText: string) => Promise<void>,
+  onDelete: () => Promise<void>,
+  onCreate: (name: string, template: any) => Promise<void>
 }) => {
   const [configText, setConfigText] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const fetchConfig = async () => {
+    setLoading(true);
+    try {
+      const resp = await axios.get(`${API_BASE}/models/${selectedModel}`);
+      setConfigText(JSON.stringify(resp.data, null, 2));
+    } catch (err) {
+      console.error("Failed to fetch config", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchConfig = async () => {
-      setLoading(true);
-      try {
-        const resp = await axios.get(`${API_BASE}/models/${selectedModel}`);
-        setConfigText(JSON.stringify(resp.data, null, 2));
-      } catch (err) {
-        console.error("Failed to fetch config", err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchConfig();
   }, [selectedModel]);
+
+  const handleSaveAs = async () => {
+    const name = prompt("Enter new model name:", `${selectedModel}_copy`);
+    if (name) {
+      try {
+        const config = JSON.parse(configText);
+        await onCreate(name, config);
+      } catch (err) {
+        alert("Invalid JSON format in editor. Please fix before cloning.");
+      }
+    }
+  };
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -52,7 +66,19 @@ const ModelEditor = ({ selectedModel, onSave, onDelete }: {
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Editing Plan</span>
           <h2 style={{ fontSize: '1.25rem' }}>{selectedModel}.json</h2>
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button 
+            onClick={fetchConfig}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}
+          >
+            Reload
+          </button>
+          <button 
+            onClick={handleSaveAs}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}
+          >
+            Clone / Save As
+          </button>
           <button 
             onClick={onDelete} 
             style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}
@@ -61,7 +87,7 @@ const ModelEditor = ({ selectedModel, onSave, onDelete }: {
           </button>
           <button 
             className="btn btn-primary" 
-            onClick={() => onSave(configText)} 
+            onClick={() => onSave(selectedModel, configText)} 
             disabled={loading}
             style={{ padding: '0.5rem 2.5rem' }}
           >
@@ -172,39 +198,39 @@ function App() {
     return () => ws.current?.close();
   }, []);
 
-  const handleSaveModel = async (configText: string) => {
-    if (!selectedModel) return;
+  const handleSaveModel = async (name: string, configText: string) => {
     try {
       const config = JSON.parse(configText);
-      await axios.post(`${API_BASE}/models/${selectedModel}`, config, {
+      await axios.post(`${API_BASE}/models/${name}`, config, {
         headers: { "X-API-KEY": API_KEY }
       });
-      setNotification(`Model ${selectedModel} saved successfully`);
+      setNotification(`Model ${name} saved successfully`);
     } catch (err) {
       alert("Invalid JSON format. Please check your syntax.");
     }
   };
 
-  const handleCreateModel = async () => {
-    const name = prompt("Enter new model name (e.g. model_x):");
-    if (!name) return;
+  const handleCreateModel = async (name: string, template: any) => {
     try {
-      const defaultConfig = {
-        function_test: [
-          { name: "CPU_Check", progress: 20 },
-          { name: "Memory_Test", progress: 50 }
-        ],
-        burn_in: { total_hours: 4, thermal_threshold: 95.0, report_interval_seconds: 30 }
-      };
-      await axios.post(`${API_BASE}/models/${name}`, defaultConfig, {
+      await axios.post(`${API_BASE}/models/${name}`, template, {
         headers: { "X-API-KEY": API_KEY }
       });
-      setAvailableModels(prev => [...prev, name]);
+      setAvailableModels(prev => [...new Set([...prev, name])]);
       setSelectedModel(name);
       setNotification(`Model ${name} created`);
     } catch (err) {
       alert("Failed to create model");
     }
+  };
+
+  const handleCreateNewBlank = async () => {
+    const name = prompt("Enter new model name:");
+    if (!name) return;
+    const defaultConfig = {
+      function_test: [{ name: "New Test", progress: 0 }],
+      burn_in: { total_hours: 1, thermal_threshold: 95.0, report_interval_seconds: 60 }
+    };
+    await handleCreateModel(name, defaultConfig);
   };
 
   const handleDeleteModel = async () => {
@@ -355,7 +381,7 @@ function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Library</h3>
                 <button 
-                  onClick={handleCreateModel}
+                  onClick={handleCreateNewBlank}
                   style={{ background: 'var(--success)', border: 'none', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
                 >
                   + NEW
@@ -391,6 +417,7 @@ function App() {
               selectedModel={selectedModel} 
               onSave={handleSaveModel}
               onDelete={handleDeleteModel}
+              onCreate={handleCreateModel}
             />
           </div>
         </div>
