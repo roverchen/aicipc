@@ -21,6 +21,7 @@ interface TaskStatus {
   progress: number;
   message: string;
   rack_id: string;
+  dut_id: string;
 }
 
 // Isolated Model Editor Component
