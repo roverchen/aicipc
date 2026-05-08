@@ -12,6 +12,7 @@
 *   **大規模並行處理**：支援 30 組 Rack，總計 300 個節點，2,400 個序列埠監控。
 *   **全流程自動化**：整合 PXE、rshim 與 BMC 實現遠端操控，支援刷碼啟動。
 *   **即時監控中心**：Dashboard 延遲 < 2s，具備動態過熱保護與多語系支援 (CN/EN/VN)。
+*   **刷碼流程執行策略**：掃碼後依序執行 `OS_INSTALL -> FW_UPDATE -> FUNCTION_TEST -> BURN_IN`，每階段完成後才進入下一階段。
 
 ---
 
@@ -67,7 +68,7 @@ cd frontend && npm install && npm run dev
 
 ### 3. 生產環境部署 (Docker)
 ```bash
-docker-compose up --build --scale rack-manager-1=30
+docker-compose up --build --scale rack-manager=30
 ```
 
 ---

@@ -45,5 +45,13 @@ class TelemetryModel(Base):
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     data = Column(JSON)
 
+class MacRegistryModel(Base):
+    __tablename__ = "mac_registry"
+
+    mac = Column(String, primary_key=True, index=True)
+    rack_id = Column(String, index=True)
+    dut_id = Column(String, index=True)
+    first_seen = Column(DateTime, default=datetime.datetime.utcnow)
+
 def init_db():
     Base.metadata.create_all(bind=engine)

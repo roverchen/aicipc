@@ -12,6 +12,7 @@ from src.common.schema import (
     CommonResponse, RegisterRequest, HeartbeatRequest
 )
 from src.common.database import init_db, SessionLocal, AgentModel, TaskModel, TelemetryModel
+from src.common.database import MacRegistryModel
 import uuid
 
 # Security Configuration
@@ -99,15 +100,52 @@ async def register_agent(req: RegisterRequest, x_api_key: str = Header(...), db:
     return CommonResponse(success=True, message=f"Rack {req.rack_id} registered successfully")
 
 @app.post("/api/v1/verify_mac")
-async def verify_mac(mac: str, x_api_key: str = Header(...), db: SessionLocal = Depends(get_db)):
+async def verify_mac(
+    mac: str,
+    rack_id: Optional[str] = None,
+    dut_id: Optional[str] = None,
+    x_api_key: str = Header(...),
+    db: SessionLocal = Depends(get_db)
+):
     """Check MAC uniqueness for production requirements"""
     if x_api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API Key")
-    # Logic: Fail if MAC exists in DB
-    exists = db.query(TelemetryModel).filter(TelemetryModel.dut_id == mac).first()
+    exists = db.query(MacRegistryModel).filter(MacRegistryModel.mac == mac).first()
     if exists:
         return {"status": "FAIL", "message": f"Duplicate MAC detected: {mac}"}
+    db.add(MacRegistryModel(mac=mac, rack_id=rack_id, dut_id=dut_id))
+    db.commit()
     return {"status": "PASS", "message": "MAC is unique"}
+
+@app.post("/api/v1/telemetry", response_model=CommonResponse)
+async def ingest_telemetry(payload: TelemetryData, x_api_key: str = Header(...), db: SessionLocal = Depends(get_db)):
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    row = TelemetryModel(
+        id=f"tele-{uuid.uuid4().hex[:12]}",
+        rack_id=payload.rack_id,
+        dut_id=payload.dut_id,
+        timestamp=payload.timestamp,
+        data=payload.metrics
+    )
+    db.add(row)
+    db.commit()
+    return CommonResponse(success=True, message="Telemetry ingested", data={"id": row.id})
+
+@app.get("/api/v1/telemetry")
+async def list_telemetry(
+    rack_id: Optional[str] = None,
+    dut_id: Optional[str] = None,
+    limit: int = 100,
+    db: SessionLocal = Depends(get_db)
+):
+    q = db.query(TelemetryModel)
+    if rack_id:
+        q = q.filter(TelemetryModel.rack_id == rack_id)
+    if dut_id:
+        q = q.filter(TelemetryModel.dut_id == dut_id)
+    rows = q.order_by(TelemetryModel.timestamp.desc()).limit(min(limit, 500)).all()
+    return rows
 
 @app.post("/api/v1/heartbeat", response_model=CommonResponse)
 async def receive_heartbeat(req: HeartbeatRequest, x_api_key: str = Header(...), db: SessionLocal = Depends(get_db)):

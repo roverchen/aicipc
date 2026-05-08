@@ -412,7 +412,7 @@ function App() {
 
     try {
       // 1. Verify MAC uniqueness (Production Req)
-      const resp = await axios.post(`${API_BASE}/verify_mac?mac=${mac}`, {}, {
+      const resp = await axios.post(`${API_BASE}/verify_mac?mac=${mac}&rack_id=${rack_id}&dut_id=${dut_id}`, {}, {
         headers: { "X-API-KEY": API_KEY }
       });
 
@@ -423,7 +423,7 @@ function App() {
 
       setNotification(`MAC ${mac} verified. Starting Auto-Test Sequence...`);
 
-      // 2. Trigger Auto Sequence (OS -> FW -> Function -> Burn-in)
+      // 2. Trigger Auto Sequence (OS -> FW -> Function -> Burn-in) in strict order.
       const tasksToRun = [
         { id: `os_${Date.now()}`, action: "OS_INSTALL", msg: "Auto: OS Installation" },
         { id: `fw_${Date.now()}`, action: "FW_UPDATE", msg: "Auto: FW Update" },
@@ -432,6 +432,7 @@ function App() {
       ];
 
       for (const t of tasksToRun) {
+        setNotification(`${t.msg} started...`);
         await axios.post(`${API_BASE}/tasks`, {
           task_id: t.id,
           rack_id,
@@ -439,7 +440,24 @@ function App() {
           action: t.action,
           params: { model: "default" }
         }, { headers: { "X-API-KEY": API_KEY } });
+
+        // Wait current stage done before launching next stage.
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const s = await axios.get(`${API_BASE}/tasks/${t.id}`);
+          if (s.data.status === "SUCCESS") {
+            setNotification(`${t.msg} completed`);
+            break;
+          }
+          if (s.data.status === "FAILED" || s.data.status === "CANCELLED") {
+            alert(`${t.msg} failed: ${s.data.message}`);
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 1500));
+        }
       }
+
+      setNotification(`Auto-Test Sequence completed for ${dut_id}`);
 
     } catch (err: any) {
       alert(`Scan Flow Failed: ${err.message}`);

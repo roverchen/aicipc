@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   control-plane:
     build: .
@@ -10,26 +8,12 @@ services:
     environment:
       - API_KEY=aicipc-secret-2026
 
-  rack-manager-1:
+  rack-manager:
     build: .
     command: ["python", "-m", "src.rack_manager.agent"]
     environment:
-      - RACK_ID=RACK-001
-    depends_on:
-      - control-plane
-
-  rack-manager-2:
-    build: .
-    command: ["python", "-m", "src.rack_manager.agent"]
-    environment:
-      - RACK_ID=RACK-002
-    depends_on:
-      - control-plane
-
-  rack-manager-3:
-    build: .
-    command: ["python", "-m", "src.rack_manager.agent"]
-    environment:
-      - RACK_ID=RACK-003
+      - API_KEY=aicipc-secret-2026
+      - HEARTBEAT_INTERVAL_SECONDS=2
+      - DUT_COUNT=10
     depends_on:
       - control-plane

@@ -5,7 +5,7 @@ import random
 import os
 from src.common.schema import (
     RegisterRequest, HeartbeatRequest, TaskRequest, TaskUpdate, 
-    DUTStatus
+    DUTStatus, TelemetryData
 )
 from src.rack_manager.task_handler import TaskHandler
 from src.rack_manager.logger import logger
@@ -71,8 +71,32 @@ class RackManagerAgent:
                     for task_data in data["data"]["pending_tasks"]:
                         task = TaskRequest(**task_data)
                         asyncio.create_task(self.execute_task(task))
+                await self.send_telemetry()
             except Exception as e:
                 print(f"[!] Heartbeat failed: {e}")
+
+    async def send_telemetry(self):
+        async with httpx.AsyncClient() as client:
+            for dut_id, status in self.dut_status.items():
+                if status == DUTStatus.IDLE:
+                    continue
+                payload = TelemetryData(
+                    rack_id=self.rack_id,
+                    dut_id=dut_id,
+                    metrics={
+                        "cpu_temp": round(random.uniform(45, 88), 2),
+                        "fan_speed": round(random.uniform(2600, 5200), 0),
+                        "power_watts": round(random.uniform(180, 420), 2),
+                    }
+                )
+                try:
+                    await client.post(
+                        f"{CONTROL_PLANE_URL}/api/v1/telemetry",
+                        content=payload.model_dump_json(),
+                        headers=self.headers
+                    )
+                except Exception as e:
+                    print(f"[!] Telemetry upload failed ({dut_id}): {e}")
 
     async def execute_task(self, task: TaskRequest):
         # Update DUT status to TESTING

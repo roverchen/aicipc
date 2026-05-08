@@ -4,6 +4,7 @@ import random
 from pathlib import Path
 from src.common.schema import TaskRequest, TaskUpdate, TaskStatus, TaskAction
 from src.rack_manager.test_engine import ThermalMonitor, FunctionTestRunner, BurnInRunner, load_test_config
+from src.rack_manager.serial_monitor import SerialMonitor
 
 class TaskHandler:
     def __init__(self, agent_id: str, control_plane_url: str):
@@ -12,6 +13,7 @@ class TaskHandler:
         self.function_runner = FunctionTestRunner()
         self.burnin_runner = BurnInRunner()
         self.active_aborts = {} # task_id: bool
+        self.serial_monitor = SerialMonitor(agent_id)
 
     async def execute(self, task: TaskRequest, update_callback):
         """Execute a task and call the update_callback with progress"""
@@ -115,21 +117,35 @@ class TaskHandler:
         await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.SUCCESS, progress=100, message=f"{'rshim' if is_rshim else 'PXE'} Installation Complete"))
 
     async def _wait_for_keyword(self, task: TaskRequest, update_callback, keyword: str, timeout: int = 60):
-        """Simulate monitoring Serial Output for a specific keyword"""
+        """Monitor serial ring buffer for a specific keyword with timeout."""
         await update_callback(TaskUpdate(
             task_id=task.task_id, status=TaskStatus.RUNNING, 
             message=f"Monitoring Serial for keyword: [{keyword}]..."
         ))
-        
-        # In a real system, this would read from a buffer populated by a serial background task
-        # For the prototype, we simulate a successful find after a short random delay
-        delay = random.uniform(2, 5)
-        await asyncio.sleep(delay)
-        
+
+        elapsed = 0
+        # For prototype mode without real serial feed, inject synthetic lines into COM1.
+        inject_after = random.randint(2, 5)
+        while elapsed < timeout:
+            if elapsed == inject_after:
+                await self.serial_monitor.append(task.dut_id, "COM1", f"BOOT MSG ... {keyword} ...")
+
+            found = await self.serial_monitor.contains_keyword(task.dut_id, keyword)
+            if found:
+                await update_callback(TaskUpdate(
+                    task_id=task.task_id, status=TaskStatus.RUNNING,
+                    message=f"Keyword [{keyword}] DETECTED at T+{elapsed}s. Proceeding."
+                ))
+                return
+
+            await asyncio.sleep(1)
+            elapsed += 1
+
         await update_callback(TaskUpdate(
-            task_id=task.task_id, status=TaskStatus.RUNNING, 
-            message=f"Keyword [{keyword}] DETECTED at T+{delay:.1f}s. Proceeding."
+            task_id=task.task_id, status=TaskStatus.FAILED,
+            message=f"Keyword [{keyword}] not detected within {timeout}s."
         ))
+        self.active_aborts[task.task_id] = True
 
     async def _handle_fw_update(self, task: TaskRequest, update_callback):
         print(f"[Task] Starting FW Update for {task.dut_id}")
