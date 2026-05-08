@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Activity, Server, Cpu, Play } from 'lucide-react';
 import axios from 'axios';
 
+// Environment detection
 const isDev = window.location.port >= '5173' && window.location.port <= '5176';
 const API_BASE = isDev ? "http://localhost:8000/api/v1" : window.location.origin + "/api/v1";
 const WS_URL = isDev ? "ws://localhost:8000/ws/events" : (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + "/ws/events";
@@ -22,6 +23,7 @@ interface TaskStatus {
   rack_id: string;
 }
 
+// Isolated Model Editor Component
 const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: { 
   selectedModel: string, 
   onSave: (name: string, configText: string) => Promise<void>,
@@ -31,7 +33,7 @@ const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: {
   const [configText, setConfigText] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
       const resp = await axios.get(`${API_BASE}/models/${selectedModel}`);
@@ -41,11 +43,11 @@ const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedModel]);
 
   useEffect(() => {
     fetchConfig();
-  }, [selectedModel]);
+  }, [fetchConfig]);
 
   const handleSaveAs = async () => {
     const name = prompt("Enter new model name:", `${selectedModel}_copy`);
@@ -128,12 +130,12 @@ function App() {
   const [selectedRack, setSelectedRack] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>("default");
   const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [editingModelConfig, setEditingModelConfig] = useState<string>("");
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
   const [view, setView] = useState<'dashboard' | 'models'>('dashboard');
   const [searchQuery, setSearchQuery] = useState("");
   const ws = useRef<WebSocket | null>(null);
 
+  // Auto-clear notifications
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 3000);
@@ -141,6 +143,7 @@ function App() {
     }
   }, [notification]);
 
+  // Initial Data Fetch & WebSocket Setup
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -165,9 +168,6 @@ function App() {
         const resp = await axios.get(`${API_BASE}/models`);
         const models = resp.data;
         setAvailableModels(models);
-        if (models.length > 0 && !models.includes("default")) {
-          setSelectedModel(models[0]);
-        }
       } catch (err) {
         console.error("Failed to fetch models", err);
       }
@@ -178,20 +178,24 @@ function App() {
 
     ws.current = new WebSocket(WS_URL);
     ws.current.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'init') {
-        setAgents(msg.agents);
-        setTasks(msg.tasks);
-      } else if (msg.type === 'task_update') {
-        const update = msg.data;
-        setTasks(prev => ({ ...prev, [update.task_id]: update }));
-        if (update.status === 'SUCCESS') {
-          setNotification(`Task ${update.task_id} completed successfully!`);
-        } else if (update.status === 'FAILED') {
-          setNotification(`Task ${update.task_id} failed!`);
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'init') {
+          setAgents(msg.agents);
+          setTasks(msg.tasks);
+        } else if (msg.type === 'task_update') {
+          const update = msg.data;
+          setTasks(prev => ({ ...prev, [update.task_id]: update }));
+          if (update.status === 'SUCCESS') {
+            setNotification(`Task ${update.task_id} completed successfully!`);
+          } else if (update.status === 'FAILED') {
+            setNotification(`Task ${update.task_id} failed!`);
+          }
+        } else if (msg.type === 'notification') {
+          setNotification(`${msg.data.title}: ${msg.data.message}`);
         }
-      } else {
-        fetchData();
+      } catch (e) {
+        console.error("WebSocket message parse error", e);
       }
     };
 
@@ -272,7 +276,6 @@ function App() {
       alert("Failed to launch task");
     }
   };
-
 
   return (
     <div className="dashboard-container">
