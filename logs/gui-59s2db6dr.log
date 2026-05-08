@@ -1,0 +1,3 @@
+[2026-05-08 09:56:00] Burn-in stress testing started...
+[2026-05-08 09:56:43] Overheat 90.5°C >= 90.0°C. No bmc_poweroff_cmd provided; marked as emergency stop.
+[2026-05-08 09:56:43] CRITICAL: Burn-in aborted! CPU Temperature reached 90.5°C (Threshold: 90.0°C)
