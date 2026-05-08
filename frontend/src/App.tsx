@@ -22,6 +22,79 @@ interface TaskStatus {
   rack_id: string;
 }
 
+const ModelEditor = ({ selectedModel, onSave, onDelete }: { 
+  selectedModel: string, 
+  onSave: (config: any) => Promise<void>,
+  onDelete: () => Promise<void>
+}) => {
+  const [configText, setConfigText] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      setLoading(true);
+      try {
+        const resp = await axios.get(`${API_BASE}/models/${selectedModel}`);
+        setConfigText(JSON.stringify(resp.data, null, 2));
+      } catch (err) {
+        console.error("Failed to fetch config", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchConfig();
+  }, [selectedModel]);
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '1rem 1.5rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+        <div>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Editing Plan</span>
+          <h2 style={{ fontSize: '1.25rem' }}>{selectedModel}.json</h2>
+        </div>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button 
+            onClick={onDelete} 
+            style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Delete
+          </button>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => onSave(configText)} 
+            disabled={loading}
+            style={{ padding: '0.5rem 2.5rem' }}
+          >
+            {loading ? "Loading..." : "Save Test Plan"}
+          </button>
+        </div>
+      </div>
+      <textarea 
+        value={configText}
+        onChange={(e) => setConfigText(e.target.value)}
+        disabled={loading}
+        placeholder={loading ? "Fetching configuration..." : "Enter JSON configuration here..."}
+        style={{ 
+          flex: 1,
+          width: '100%', 
+          background: 'rgba(15, 23, 42, 0.8)', 
+          color: '#e2e8f0', 
+          fontFamily: '"Fira Code", monospace', 
+          fontSize: '0.95rem', 
+          lineHeight: '1.6',
+          padding: '2rem', 
+          borderRadius: '1rem', 
+          border: '1px solid var(--border)',
+          outline: 'none',
+          boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
+          resize: 'none',
+          opacity: loading ? 0.5 : 1
+        }}
+      />
+    </div>
+  );
+};
+
 function App() {
   const [agents, setAgents] = useState<Record<string, Agent>>({});
   const [tasks, setTasks] = useState<Record<string, TaskStatus>>({});
@@ -99,30 +172,16 @@ function App() {
     return () => ws.current?.close();
   }, []);
 
-  useEffect(() => {
-    if (view === 'models' && selectedModel) {
-      const fetchModelConfig = async () => {
-        try {
-          const resp = await axios.get(`${API_BASE}/models/${selectedModel}`);
-          setEditingModelConfig(JSON.stringify(resp.data, null, 2));
-        } catch (err) {
-          console.error("Failed to fetch model config", err);
-        }
-      };
-      fetchModelConfig();
-    }
-  }, [view, selectedModel]);
-
-  const handleSaveModel = async () => {
+  const handleSaveModel = async (configText: string) => {
     if (!selectedModel) return;
     try {
-      const config = JSON.parse(editingModelConfig);
+      const config = JSON.parse(configText);
       await axios.post(`${API_BASE}/models/${selectedModel}`, config, {
         headers: { "X-API-KEY": API_KEY }
       });
       setNotification(`Model ${selectedModel} saved successfully`);
     } catch (err) {
-      alert("Invalid JSON or save failed");
+      alert("Invalid JSON format. Please check your syntax.");
     }
   };
 
@@ -327,42 +386,12 @@ function App() {
               </div>
             </div>
             
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '1rem 1.5rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Editing Plan</span>
-                  <h2 style={{ fontSize: '1.25rem' }}>{selectedModel}.json</h2>
-                </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button 
-                    onClick={handleDeleteModel} 
-                    style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    Delete
-                  </button>
-                  <button className="btn btn-primary" onClick={handleSaveModel} style={{ padding: '0.5rem 2.5rem' }}>Save Test Plan</button>
-                </div>
-              </div>
-              <textarea 
-                value={editingModelConfig}
-                onChange={(e) => setEditingModelConfig(e.target.value)}
-                style={{ 
-                  flex: 1,
-                  width: '100%', 
-                  background: 'rgba(15, 23, 42, 0.8)', 
-                  color: '#e2e8f0', 
-                  fontFamily: '"Fira Code", monospace', 
-                  fontSize: '0.95rem', 
-                  lineHeight: '1.6',
-                  padding: '2rem', 
-                  borderRadius: '1rem', 
-                  border: '1px solid var(--border)',
-                  outline: 'none',
-                  boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
-                  resize: 'none'
-                }}
-              />
-            </div>
+            <ModelEditor 
+              key={selectedModel}
+              selectedModel={selectedModel} 
+              onSave={handleSaveModel}
+              onDelete={handleDeleteModel}
+            />
           </div>
         </div>
       )}
