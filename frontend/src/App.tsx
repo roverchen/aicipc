@@ -303,6 +303,7 @@ function App() {
   const [tasks, setTasks] = useState<Record<string, TaskStatus>>({});
   const [notification, setNotification] = useState<string | null>(null);
   const [selectedRack, setSelectedRack] = useState<string | null>(null);
+  const [selectedDut, setSelectedDut] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>("default");
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isTaskPanelOpen, setIsTaskPanelOpen] = useState(false);
@@ -474,13 +475,13 @@ function App() {
   };
 
   const handleLaunchTask = async (action: string) => {
-    if (!selectedRack) return;
+    if (!selectedRack || !selectedDut) return;
     const taskId = `gui-${Math.random().toString(36).substr(2, 9)}`;
     try {
       await axios.post(`${API_BASE}/tasks`, {
         task_id: taskId,
         rack_id: selectedRack,
-        dut_id: "DUT-01",
+        dut_id: selectedDut,
         action: action,
         params: {
           model: selectedModel
@@ -488,79 +489,98 @@ function App() {
       }, {
         headers: { "X-API-KEY": API_KEY }
       });
-      setNotification(`Task ${action} launched for ${selectedRack} (${selectedModel})`);
+      setNotification(`Task ${action} launched for ${selectedRack}:${selectedDut}`);
     } catch (err) {
       alert("Failed to launch task");
     }
   };
 
   return (
-    <div className="app-container" style={{ display: 'flex', height: '100vh', background: 'var(--bg)', color: 'var(--text-main)' }}>
+    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)', color: 'var(--text-main)' }}>
       {notification && <div className="notification">{notification}</div>}
       
-      {/* Sidebar */}
-      <div className="sidebar" style={{ width: '280px', background: 'rgba(0,0,0,0.3)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-          <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '0.75rem' }}>
-            <Activity size={24} color="white" />
+      {/* Top Header & Navigation */}
+      <header style={{ 
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+        padding: '0 2rem', height: '70px', background: 'rgba(0,0,0,0.3)', 
+        borderBottom: '1px solid var(--border)', backdropFilter: 'blur(10px)',
+        position: 'sticky', top: 0, zIndex: 100
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '0.6rem' }}>
+              <Activity size={20} color="white" />
+            </div>
+            <h1 style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>
+              AICIPC <span style={{ color: 'var(--accent)', fontSize: '0.6rem', verticalAlign: 'top' }}>PRO</span>
+            </h1>
           </div>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em' }}>AICIPC <span style={{ color: 'var(--accent)', fontSize: '0.7rem', verticalAlign: 'top' }}>PRO</span></h1>
-        </div>
-        
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0 1rem' }}>
-          <button 
-            className={`nav-item ${view === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setView('dashboard')}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', padding: '0.8rem 1rem', 
-              borderRadius: '0.75rem', border: 'none', background: view === 'dashboard' ? 'var(--accent)' : 'transparent',
-              color: 'white', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
-            }}
-          >
-            <Server size={18} /> {t.dashboard}
-          </button>
-          <button 
-            className={`nav-item ${view === 'models' ? 'active' : ''}`}
-            onClick={() => setView('models')}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', padding: '0.8rem 1rem', 
-              borderRadius: '0.75rem', border: 'none', background: view === 'models' ? 'var(--accent)' : 'transparent',
-              color: 'white', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
-            }}
-          >
-            <Play size={18} /> {t.testPlans}
-          </button>
-        </nav>
 
-        <div style={{ marginTop: 'auto', padding: '1.5rem', borderTop: '1px solid var(--border)' }}>
+          <nav style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              onClick={() => setView('dashboard')}
+              style={{ 
+                padding: '0.6rem 1.5rem', borderRadius: '0.5rem', border: 'none',
+                background: view === 'dashboard' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                color: view === 'dashboard' ? 'var(--accent)' : 'var(--text-muted)',
+                cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', transition: 'all 0.2s',
+                borderBottom: view === 'dashboard' ? '2px solid var(--accent)' : '2px solid transparent'
+              }}
+            >
+              {t.dashboard}
+            </button>
+            <button 
+              onClick={() => setView('models')}
+              style={{ 
+                padding: '0.6rem 1.5rem', borderRadius: '0.5rem', border: 'none',
+                background: view === 'models' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                color: view === 'models' ? 'var(--accent)' : 'var(--text-muted)',
+                cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', transition: 'all 0.2s',
+                borderBottom: view === 'models' ? '2px solid var(--accent)' : '2px solid transparent'
+              }}
+            >
+              {t.testPlans}
+            </button>
+          </nav>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <div style={{ display: 'flex', gap: '1.5rem' }}>
+            <div className="metric-row" style={{ color: 'var(--success)', marginTop: 0, fontSize: '0.85rem' }}>
+              <Activity size={16} />
+              <span style={{ fontWeight: 600 }}>System Ready</span>
+            </div>
+            <div className="metric-row" style={{ marginTop: 0, fontSize: '0.85rem' }}>
+              <Server size={16} />
+              <span style={{ fontWeight: 600 }}>{Object.keys(agents).length} {t.racks}</span>
+            </div>
+          </div>
+          
           <select 
             value={lang} 
             onChange={(e) => setLang(e.target.value as any)}
-            style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '0.5rem', borderRadius: '0.5rem', outline: 'none', cursor: 'pointer' }}
+            style={{ 
+              background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', 
+              color: 'white', padding: '0.4rem 0.8rem', borderRadius: '0.5rem', 
+              outline: 'none', cursor: 'pointer', fontSize: '0.85rem' 
+            }}
           >
             <option value="zh" style={{ background: '#1e293b' }}>繁體中文</option>
             <option value="en" style={{ background: '#1e293b' }}>English</option>
             <option value="vi" style={{ background: '#1e293b' }}>Tiếng Việt</option>
           </select>
         </div>
-      </div>
+      </header>
 
-      {/* Main Content */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <header style={{ padding: '1rem 2rem', display: 'flex', justifyContent: 'flex-end', gap: '2rem', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
-          <div className="metric-row" style={{ color: 'var(--success)', marginTop: 0 }}>
-            <Activity size={18} />
-            <span style={{ marginLeft: '0.5rem', fontWeight: 600 }}>System Ready</span>
-          </div>
-          <div className="metric-row" style={{ marginTop: 0 }}>
-            <Server size={18} />
-            <span style={{ marginLeft: '0.5rem' }}>{Object.keys(agents).length} {t.racks}</span>
-          </div>
-        </header>
-
+      {/* Main Content Area */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         {view === 'dashboard' ? (
           <div style={{ padding: '2rem' }}>
-            <div style={{ background: 'rgba(0,0,0,0.2)', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center', padding: '0.75rem 1.5rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+            <div style={{ 
+              background: 'rgba(255,255,255,0.02)', marginBottom: '2rem', display: 'flex', 
+              gap: '1rem', alignItems: 'center', padding: '0.75rem 1.5rem', 
+              borderRadius: '1rem', border: '1px solid var(--border)', maxWidth: '800px'
+            }}>
               <input 
                 type="text" 
                 placeholder="Search Rack ID (e.g. RACK-001)" 
@@ -577,11 +597,12 @@ function App() {
                   <div 
                     key={id} 
                     className={`rack-card ${selectedRack === id ? 'active' : ''}`}
-                    onClick={() => {
-                      setSelectedRack(id);
-                      setIsTaskPanelOpen(true);
+                    style={{ 
+                      background: 'rgba(255,255,255,0.03)', borderRadius: '1.25rem', 
+                      border: '1px solid var(--border)', padding: '1.5rem', 
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: selectedRack === id ? '0 0 20px rgba(59, 130, 246, 0.2)' : 'none'
                     }}
-                    style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '1.25rem', border: '1px solid var(--border)', padding: '1.5rem', cursor: 'pointer', transition: 'transform 0.2s' }}
                   >
                     <div className="rack-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
                       <div className="rack-id" style={{ fontSize: '1.1rem', fontWeight: 800 }}>{id}</div>
@@ -597,14 +618,40 @@ function App() {
                       </span>
                     </div>
 
-                    <div className="dut-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', marginTop: '1rem' }}>
+                    <div className="rack-mount-area" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '1rem', background: 'rgba(0,0,0,0.4)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
                       {[...Array(agent.info?.dut_count || 10)].map((_, i) => {
                         const dutId = `DUT-${(i+1).toString().padStart(2, '0')}`;
                         const status = agent.info?.dut_summary?.[dutId] || 'IDLE';
                         return (
-                          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
-                            <div className={`dut-dot ${status.toLowerCase()}`} title={`${dutId}: ${status}`} style={{ width: '12px', height: '12px' }} />
-                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{i+1}</span>
+                          <div key={i} 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRack(id);
+                              setSelectedDut(dutId);
+                              setIsTaskPanelOpen(true);
+                            }}
+                            style={{ 
+                            display: 'flex', alignItems: 'center', height: '18px', 
+                            background: 'linear-gradient(90deg, #1e293b 0%, #0f172a 100%)', 
+                            borderRadius: '2px', border: '1px solid #334155', position: 'relative',
+                            boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.05)',
+                            cursor: 'pointer'
+                          }}>
+                            {/* Rack Ears/Handles */}
+                            <div style={{ width: '6px', height: '100%', background: '#475569', borderRight: '1px solid #1e293b', borderTopLeftRadius: '2px', borderBottomLeftRadius: '2px' }} />
+                            
+                            <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.5rem' }}>
+                              <span style={{ fontSize: '0.6rem', color: '#94a3b8', fontWeight: 800, fontFamily: 'monospace' }}>{dutId}</span>
+                              <div style={{ 
+                                width: '40px', height: '4px', borderRadius: '2px',
+                                background: status === 'IDLE' ? '#1e293b' : 
+                                            status === 'RUNNING' ? 'var(--accent)' :
+                                            status === 'SUCCESS' ? 'var(--success)' : 'var(--danger)',
+                                boxShadow: status !== 'IDLE' ? `0 0 8px ${status === 'SUCCESS' ? 'var(--success)' : 'var(--accent)'}` : 'none'
+                              }} />
+                            </div>
+
+                            <div style={{ width: '6px', height: '100%', background: '#475569', borderLeft: '1px solid #1e293b', borderTopRightRadius: '2px', borderBottomRightRadius: '2px' }} />
                           </div>
                         );
                       })}
@@ -614,7 +661,7 @@ function App() {
             </main>
           </div>
         ) : (
-          <div style={{ padding: '2rem', flex: 1, display: 'flex', gap: '2rem', overflow: 'hidden' }}>
+          <div style={{ padding: '2rem', flex: 1, display: 'flex', gap: '2rem', height: 'calc(100vh - 110px)', overflow: 'hidden' }}>
             <div style={{ width: '300px', background: 'rgba(15, 23, 42, 0.4)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{t.testPlans}</h3>
@@ -631,50 +678,63 @@ function App() {
         )}
       </div>
 
-      {/* Task Panel Drawer */}
-      <div className={`task-panel ${isTaskPanelOpen ? 'open' : ''}`} style={{ width: '400px', background: 'var(--bg-card)', borderLeft: '1px solid var(--border)', padding: '2rem', position: 'fixed', right: isTaskPanelOpen ? 0 : '-400px', top: 0, bottom: 0, zIndex: 100, transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-          <h2 style={{ fontSize: '1.5rem' }}>{t.racks} {t.status}</h2>
-          <button onClick={() => setIsTaskPanelOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', width: '32px', height: '32px' }}>✕</button>
-        </div>
-
-        <div style={{ padding: '1.25rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '1rem', marginBottom: '2rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-          <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: 700 }}>Target: {selectedRack}</span>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-             <button onClick={() => handleScanBarcode(selectedRack!, "DUT-01")} style={{ flex: 1, background: 'var(--success)', color: 'white', border: 'none', padding: '0.75rem', borderRadius: '0.5rem', fontWeight: 700, cursor: 'pointer' }}>Scan & Start Auto-Flow</button>
-          </div>
-        </div>
-
-        <div style={{ marginBottom: '2rem' }}>
-          <label style={{ display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.5rem' }}>{t.testPlans}</label>
-          <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} style={{ width: '100%', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid var(--border)', color: 'white', padding: '0.75rem', borderRadius: '0.5rem', outline: 'none' }}>
-            {availableModels.map(model => (<option key={model} value={model}>{model}</option>))}
-          </select>
-        </div>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <button className="btn btn-primary" onClick={() => handleLaunchTask('OS_INSTALL')}><Cpu size={18} /> Deploy OS</button>
-          <button className="btn btn-primary" onClick={() => handleLaunchTask('FW_UPDATE')}><Play size={18} /> Update Firmware</button>
-          <button className="btn btn-primary" onClick={() => handleLaunchTask('FUNCTION_TEST')}><Play size={18} /> Run Function Test</button>
-          <button className="btn btn-primary" onClick={() => handleLaunchTask('BURN_IN')}><Activity size={18} /> Start Burn-in</button>
-        </div>
-
-        <div style={{ marginTop: '3.5rem' }}>
-          <h3 style={{ fontSize: '0.9rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>{t.activeTasks}</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {Object.values(tasks).filter(t => t.rack_id === selectedRack).slice(-3).reverse().map(task => (
-              <div key={task.task_id} style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{task.task_id}</span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, padding: '0.2rem 0.5rem', borderRadius: '4px', background: task.status === 'SUCCESS' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: task.status === 'SUCCESS' ? 'var(--success)' : 'var(--accent)' }}>{task.status}</span>
-                </div>
-                <div className="task-progress-bar"><div className="task-progress-inner" style={{ width: `${task.progress}%` }} /></div>
-                <div style={{ marginTop: '0.75rem', color: 'var(--text-main)', fontSize: '0.8rem', opacity: 0.9 }}>{task.message}</div>
+      {/* Centered Modal Control Panel */}
+      {isTaskPanelOpen && (
+        <div style={{ 
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+        }}>
+          <div style={{ 
+            width: '500px', background: '#1e293b', borderRadius: '1.5rem', 
+            padding: '2.5rem', border: '1px solid var(--border)',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 800, textTransform: 'uppercase' }}>DUT MANAGEMENT</span>
+                <h2 style={{ fontSize: '1.75rem', fontWeight: 900, margin: 0 }}>{selectedRack} <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>:</span> {selectedDut}</h2>
               </div>
-            ))}
+              <button onClick={() => { setIsTaskPanelOpen(false); setSelectedRack(null); setSelectedDut(null); }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', padding: '0.5rem', borderRadius: '50%', width: '36px', height: '36px' }}>✕</button>
+            </div>
+
+            <div style={{ padding: '1.5rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '1rem', marginBottom: '2rem', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+              <button onClick={() => handleScanBarcode(selectedRack!, selectedDut!)} style={{ width: '100%', background: 'var(--success)', color: 'white', border: 'none', padding: '1rem', borderRadius: '0.75rem', fontWeight: 800, cursor: 'pointer', fontSize: '1rem' }}>Scan Barcode & Start Auto-Flow</button>
+            </div>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.75rem' }}>Select Test Plan</label>
+              <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} style={{ width: '100%', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid var(--border)', color: 'white', padding: '1rem', borderRadius: '0.75rem', outline: 'none' }}>
+                {availableModels.map(model => (<option key={model} value={model}>{model}</option>))}
+              </select>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2.5rem' }}>
+              <button className="btn btn-primary" onClick={() => handleLaunchTask('OS_INSTALL')} style={{ padding: '1rem' }}><Cpu size={18} /> OS Deploy</button>
+              <button className="btn btn-primary" onClick={() => handleLaunchTask('FW_UPDATE')} style={{ padding: '1rem' }}><Play size={18} /> FW Update</button>
+              <button className="btn btn-primary" onClick={() => handleLaunchTask('FUNCTION_TEST')} style={{ padding: '1rem' }}><Play size={18} /> Func Test</button>
+              <button className="btn btn-primary" onClick={() => handleLaunchTask('BURN_IN')} style={{ padding: '1rem' }}><Activity size={18} /> Burn-in</button>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '2rem' }}>
+              <h3 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Recent Unit Activity</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {Object.values(tasks).filter(t => t.rack_id === selectedRack && t.dut_id === selectedDut).slice(-2).reverse().map(task => (
+                  <div key={task.task_id} style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1.25rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, fontSize: '0.75rem', color: 'var(--accent)' }}>{task.task_id}</span>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 800, padding: '0.2rem 0.6rem', borderRadius: '4px', background: task.status === 'SUCCESS' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', color: task.status === 'SUCCESS' ? 'var(--success)' : 'var(--accent)' }}>{task.status}</span>
+                    </div>
+                    <div className="task-progress-bar"><div className="task-progress-inner" style={{ width: `${task.progress}%` }} /></div>
+                    <div style={{ marginTop: '0.75rem', color: 'var(--text-main)', fontSize: '0.8rem', opacity: 0.8 }}>{task.message}</div>
+                  </div>
+                ))}
+                {Object.values(tasks).filter(t => t.rack_id === selectedRack && t.dut_id === selectedDut).length === 0 && <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>No recent activity for this unit.</p>}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
