@@ -50,6 +50,7 @@
 | :--- | :--- | :--- |
 | `API_KEY` | `aicipc-secret-2026` | 全域通訊驗證金鑰 |
 | `CONTROL_PLANE_URL` | `http://localhost:8000` | Agent 回報位址 |
+| `RACK_ID` | `RACK-XXX` | 機架唯一代號 (Docker 模式下必填) |
 | `DUT_COUNT` | `10` | 每個機架管理之單位數 |
 
 ### 2. 開發模式啟動 (Development)
@@ -92,6 +93,37 @@ docker-compose up --build --scale rack-manager-1=30
 
 ---
 
+## 📋 任務參數與串接範例 | Runtime Parameters
+
+### A. OS 安裝 (PXE / rshim / BMC)
+範例（rshim/Bluefield）：
+```json
+{
+  "task_id": "task-os-002",
+  "action": "OS_INSTALL",
+  "params": {
+    "model": "bluefield_dpu",
+    "rshim": "true",
+    "rshim_push_cmd": "cat assets/images/bf-boot.img > /dev/rshim0/boot"
+  }
+}
+```
+
+### B. 韌體更新 (SHA-256 驗證)
+範例：
+```json
+{
+  "task_id": "task-fw-001",
+  "action": "FW_UPDATE",
+  "params": {
+    "firmware_path": "assets/firmware/bios_v2.8.1.bin",
+    "sha256": "3e7a8b3d1d7ec5b4d8cf2f95e5f8feecf0d7dc0f3a0dca193a9f77b0d4a4d8ee"
+  }
+}
+```
+
+---
+
 ## 📁 專案結構 | Project Structure
 
 ```text
@@ -102,7 +134,7 @@ aicipc/
 │   └── rack_manager/     # 邊緣代理、非同步日誌處理與測試引擎
 ├── frontend/             # Dashboard 前端 (React + Vite + i18n)
 ├── configs/test_suites/  # 測試計畫 JSON 配置檔
-├── assets/               # 韌體檔與系統鏡像存儲
+├── assets/               # 韌體檔與系統鏡像存儲 (firmware/, images/)
 ├── Dockerfile            # 容器化定義
 └── docker-compose.yml    # 多節點大規模部署
 ```
