@@ -126,6 +126,47 @@ function App() {
     }
   };
 
+  const handleCreateModel = async () => {
+    const name = prompt("Enter new model name (e.g. model_x):");
+    if (!name) return;
+    try {
+      const defaultConfig = {
+        function_test: [
+          { name: "CPU_Check", progress: 20 },
+          { name: "Memory_Test", progress: 50 }
+        ],
+        burn_in: { total_hours: 4, thermal_threshold: 95.0, report_interval_seconds: 30 }
+      };
+      await axios.post(`${API_BASE}/models/${name}`, defaultConfig, {
+        headers: { "X-API-KEY": API_KEY }
+      });
+      setAvailableModels(prev => [...prev, name]);
+      setSelectedModel(name);
+      setNotification(`Model ${name} created`);
+    } catch (err) {
+      alert("Failed to create model");
+    }
+  };
+
+  const handleDeleteModel = async () => {
+    if (!selectedModel || selectedModel === 'default') {
+      alert("Cannot delete default model");
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete ${selectedModel}?`)) return;
+    try {
+      await axios.delete(`${API_BASE}/models/${selectedModel}`, {
+        headers: { "X-API-KEY": API_KEY }
+      });
+      const newModels = availableModels.filter(m => m !== selectedModel);
+      setAvailableModels(newModels);
+      setSelectedModel(newModels[0] || "default");
+      setNotification(`Model deleted`);
+    } catch (err) {
+      alert("Delete failed");
+    }
+  };
+
   const handleLaunchTask = async (action: string) => {
     if (!selectedRack) return;
     const taskId = `gui-${Math.random().toString(36).substr(2, 9)}`;
@@ -249,50 +290,76 @@ function App() {
       </main>
       </>
       ) : (
-        <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', gap: '2rem' }}>
-            <div style={{ width: '300px', background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '1rem' }}>
-              <h3 style={{ marginBottom: '1.5rem' }}>Model Library</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', gap: '2rem', height: 'calc(100vh - 150px)' }}>
+            <div style={{ width: '300px', background: 'rgba(15, 23, 42, 0.4)', padding: '1.5rem', borderRadius: '1rem', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Library</h3>
+                <button 
+                  onClick={handleCreateModel}
+                  style={{ background: 'var(--success)', border: 'none', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
+                >
+                  + NEW
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto', flex: 1 }}>
                 {availableModels.map(model => (
                   <button 
                     key={model}
                     onClick={() => setSelectedModel(model)}
                     style={{ 
                       textAlign: 'left',
-                      padding: '0.75rem', 
-                      borderRadius: '0.5rem', 
-                      background: selectedModel === model ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
-                      border: 'none',
+                      padding: '0.8rem 1rem', 
+                      borderRadius: '0.75rem', 
+                      background: selectedModel === model ? 'var(--accent)' : 'rgba(255,255,255,0.03)',
+                      border: '1px solid',
+                      borderColor: selectedModel === model ? 'var(--accent)' : 'transparent',
                       color: 'white',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: selectedModel === model ? 700 : 400,
+                      transition: 'all 0.2s ease'
                     }}
                   >
-                    {model}
+                    {model}.json
                   </button>
                 ))}
               </div>
             </div>
             
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h2 style={{ fontSize: '1.5rem' }}>Test Plan: {selectedModel}</h2>
-                <button className="btn btn-primary" onClick={handleSaveModel} style={{ padding: '0.5rem 2rem' }}>Save Changes</button>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '1rem 1.5rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Editing Plan</span>
+                  <h2 style={{ fontSize: '1.25rem' }}>{selectedModel}.json</h2>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button 
+                    onClick={handleDeleteModel} 
+                    style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Delete
+                  </button>
+                  <button className="btn btn-primary" onClick={handleSaveModel} style={{ padding: '0.5rem 2.5rem' }}>Save Test Plan</button>
+                </div>
               </div>
               <textarea 
                 value={editingModelConfig}
                 onChange={(e) => setEditingModelConfig(e.target.value)}
                 style={{ 
+                  flex: 1,
                   width: '100%', 
-                  height: '600px', 
-                  background: '#0f172a', 
+                  background: 'rgba(15, 23, 42, 0.8)', 
                   color: '#e2e8f0', 
-                  fontFamily: 'monospace', 
-                  fontSize: '0.9rem', 
-                  padding: '1.5rem', 
+                  fontFamily: '"Fira Code", monospace', 
+                  fontSize: '0.95rem', 
+                  lineHeight: '1.6',
+                  padding: '2rem', 
                   borderRadius: '1rem', 
                   border: '1px solid var(--border)',
-                  outline: 'none'
+                  outline: 'none',
+                  boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
+                  resize: 'none'
                 }}
               />
             </div>
