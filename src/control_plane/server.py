@@ -11,7 +11,7 @@ from src.common.schema import (
     AgentStatus, TelemetryData, TaskRequest, TaskUpdate, TaskStatus,
     DecisionRequest, DecisionType, CommonResponse, RegisterRequest, HeartbeatRequest
 )
-from src.common.database import init_db, SessionLocal, AgentModel, TaskModel
+from src.common.database import init_db, SessionLocal, AgentModel, TaskModel, TelemetryModel
 import uuid
 
 # Security Configuration
@@ -97,6 +97,17 @@ async def register_agent(req: RegisterRequest, x_api_key: str = Header(...), db:
     
     print(f"[*] Agent registered: {req.rack_id}")
     return CommonResponse(success=True, message=f"Rack {req.rack_id} registered successfully")
+
+@app.post("/api/v1/verify_mac")
+async def verify_mac(mac: str, x_api_key: str = Header(...), db: SessionLocal = Depends(get_db)):
+    """Check MAC uniqueness for production requirements"""
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    # Logic: Fail if MAC exists in DB
+    exists = db.query(TelemetryModel).filter(TelemetryModel.dut_id == mac).first()
+    if exists:
+        return {"status": "FAIL", "message": f"Duplicate MAC detected: {mac}"}
+    return {"status": "PASS", "message": "MAC is unique"}
 
 @app.post("/api/v1/heartbeat", response_model=CommonResponse)
 async def receive_heartbeat(req: HeartbeatRequest, x_api_key: str = Header(...), db: SessionLocal = Depends(get_db)):

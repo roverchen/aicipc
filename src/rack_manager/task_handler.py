@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import random
 from pathlib import Path
 from src.common.schema import TaskRequest, TaskUpdate, TaskStatus, TaskAction
 from src.rack_manager.test_engine import ThermalMonitor, FunctionTestRunner, BurnInRunner, load_test_config
@@ -103,9 +104,32 @@ class TaskHandler:
             
         for progress, message in steps:
             await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.RUNNING, progress=progress, message=message))
-            await asyncio.sleep(1.5)
+            
+            # New: Keyword-based monitoring instead of fixed sleep
+            if "Waiting" in message or "Downloading" in message:
+                keyword = "READY" if not is_rshim else "ARM_BOOT_OK"
+                await self._wait_for_keyword(task, update_callback, keyword)
+            else:
+                await asyncio.sleep(1.0)
         
         await update_callback(TaskUpdate(task_id=task.task_id, status=TaskStatus.SUCCESS, progress=100, message=f"{'rshim' if is_rshim else 'PXE'} Installation Complete"))
+
+    async def _wait_for_keyword(self, task: TaskRequest, update_callback, keyword: str, timeout: int = 60):
+        """Simulate monitoring Serial Output for a specific keyword"""
+        await update_callback(TaskUpdate(
+            task_id=task.task_id, status=TaskStatus.RUNNING, 
+            message=f"Monitoring Serial for keyword: [{keyword}]..."
+        ))
+        
+        # In a real system, this would read from a buffer populated by a serial background task
+        # For the prototype, we simulate a successful find after a short random delay
+        delay = random.uniform(2, 5)
+        await asyncio.sleep(delay)
+        
+        await update_callback(TaskUpdate(
+            task_id=task.task_id, status=TaskStatus.RUNNING, 
+            message=f"Keyword [{keyword}] DETECTED at T+{delay:.1f}s. Proceeding."
+        ))
 
     async def _handle_fw_update(self, task: TaskRequest, update_callback):
         print(f"[Task] Starting FW Update for {task.dut_id}")

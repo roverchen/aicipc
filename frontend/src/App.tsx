@@ -243,7 +243,62 @@ const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: {
   );
 };
 
+// i18n Translations
+const TRANSLATIONS: Record<string, any> = {
+  en: {
+    dashboard: "Dashboard",
+    testPlans: "Test Plans",
+    racks: "Racks",
+    health: "System Health",
+    activeTasks: "Active Tasks",
+    newPlan: "New Plan",
+    saveChanges: "Save Changes",
+    status: "Status",
+    progress: "Progress",
+    message: "Message",
+    agent: "Agent",
+    lastSeen: "Last Seen",
+    totalDuts: "Total DUTs",
+    capabilities: "Capabilities"
+  },
+  zh: {
+    dashboard: "儀表板",
+    testPlans: "測試計畫",
+    racks: "機架管理",
+    health: "系統健康度",
+    activeTasks: "執行中任務",
+    newPlan: "新增計畫",
+    saveChanges: "儲存變更",
+    status: "狀態",
+    progress: "進度",
+    message: "訊息",
+    agent: "代理程序",
+    lastSeen: "最後上線",
+    totalDuts: "總待測物數",
+    capabilities: "功能支援"
+  },
+  vi: {
+    dashboard: "Bảng điều khiển",
+    testPlans: "Kế hoạch kiểm tra",
+    racks: "Quản lý kệ",
+    health: "Sức khỏe hệ thống",
+    activeTasks: "Nhiệm vụ đang hoạt động",
+    newPlan: "Kế hoạch mới",
+    saveChanges: "Lưu thay đổi",
+    status: "Trạng thái",
+    progress: "Tiến độ",
+    message: "Tin nhắn",
+    agent: "Đại lý",
+    lastSeen: "Thấy lần cuối",
+    totalDuts: "Tổng số DUT",
+    capabilities: "Khả năng"
+  }
+};
+
 function App() {
+  const [lang, setLang] = useState<'en' | 'zh' | 'vi'>('zh');
+  const t = TRANSLATIONS[lang];
+
   const [agents, setAgents] = useState<Record<string, Agent>>({});
   const [tasks, setTasks] = useState<Record<string, TaskStatus>>({});
   const [notification, setNotification] = useState<string | null>(null);
@@ -346,6 +401,46 @@ function App() {
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.message;
       alert(`Create failed: ${msg}`);
+    }
+  };
+
+  const handleScanBarcode = async (rack_id: string, dut_id: string) => {
+    const mac = prompt(`[${dut_id}] Please scan or enter MAC Address:`);
+    if (!mac) return;
+
+    try {
+      // 1. Verify MAC uniqueness (Production Req)
+      const resp = await axios.post(`${API_BASE}/verify_mac?mac=${mac}`, {}, {
+        headers: { "X-API-KEY": API_KEY }
+      });
+
+      if (resp.data.status === "FAIL") {
+        alert(`CRITICAL ERROR: ${resp.data.message}`);
+        return;
+      }
+
+      setNotification(`MAC ${mac} verified. Starting Auto-Test Sequence...`);
+
+      // 2. Trigger Auto Sequence (OS -> FW -> Function -> Burn-in)
+      const tasksToRun = [
+        { id: `os_${Date.now()}`, action: "OS_INSTALL", msg: "Auto: OS Installation" },
+        { id: `fw_${Date.now()}`, action: "FW_UPDATE", msg: "Auto: FW Update" },
+        { id: `ft_${Date.now()}`, action: "FUNCTION_TEST", msg: "Auto: Function Test" },
+        { id: `bi_${Date.now()}`, action: "BURN_IN", msg: "Auto: Burn-in" }
+      ];
+
+      for (const t of tasksToRun) {
+        await axios.post(`${API_BASE}/tasks`, {
+          task_id: t.id,
+          rack_id,
+          dut_id,
+          action: t.action,
+          params: { model: "default" }
+        }, { headers: { "X-API-KEY": API_KEY } });
+      }
+
+    } catch (err: any) {
+      alert(`Scan Flow Failed: ${err.message}`);
     }
   };
 

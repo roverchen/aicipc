@@ -36,5 +36,14 @@ class TaskModel(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
+class TelemetryModel(Base):
+    __tablename__ = "telemetry"
+
+    id = Column(String, primary_key=True, index=True)
+    rack_id = Column(String, index=True)
+    dut_id = Column(String, index=True)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    data = Column(JSON)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
