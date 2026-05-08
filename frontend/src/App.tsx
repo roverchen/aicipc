@@ -32,6 +32,7 @@ const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: {
 }) => {
   const [configText, setConfigText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editorMode, setEditorMode] = useState<'visual' | 'source'>('visual');
 
   const fetchConfig = useCallback(async () => {
     setLoading(true);
@@ -49,6 +50,19 @@ const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: {
     fetchConfig();
   }, [fetchConfig]);
 
+  // Helper to safely parse and update config
+  const getParsedConfig = () => {
+    try {
+      return JSON.parse(configText);
+    } catch {
+      return { function_test: [], burn_in: {} };
+    }
+  };
+
+  const updateConfig = (newConfig: any) => {
+    setConfigText(JSON.stringify(newConfig, null, 2));
+  };
+
   const handleSaveAs = async () => {
     const name = prompt("Enter new model name:", `${selectedModel}_copy`);
     if (name) {
@@ -56,69 +70,151 @@ const ModelEditor = ({ selectedModel, onSave, onDelete, onCreate }: {
         const config = JSON.parse(configText);
         await onCreate(name, config);
       } catch (err) {
-        alert("Invalid JSON format in editor. Please fix before cloning.");
+        alert("Invalid JSON format. Please fix before cloning.");
       }
     }
   };
 
+  const parsed = getParsedConfig();
+  const functionTests = parsed.function_test || [];
+  const burnIn = parsed.burn_in || {};
+
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Header Actions */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '1rem 1.5rem', borderRadius: '1rem', border: '1px solid var(--border)' }}>
-        <div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Editing Plan</span>
-          <h2 style={{ fontSize: '1.25rem' }}>{selectedModel}.json</h2>
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+          <div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Model</span>
+            <h2 style={{ fontSize: '1.1rem' }}>{selectedModel}.json</h2>
+          </div>
+          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', padding: '0.25rem', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
+            <button 
+              onClick={() => setEditorMode('visual')}
+              style={{ padding: '0.4rem 1rem', borderRadius: '0.4rem', border: 'none', background: editorMode === 'visual' ? 'var(--accent)' : 'transparent', color: 'white', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+            >Visual</button>
+            <button 
+              onClick={() => setEditorMode('source')}
+              style={{ padding: '0.4rem 1rem', borderRadius: '0.4rem', border: 'none', background: editorMode === 'source' ? 'var(--accent)' : 'transparent', color: 'white', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+            >Source</button>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button 
-            onClick={fetchConfig}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}
-          >
-            Reload
-          </button>
-          <button 
-            onClick={handleSaveAs}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}
-          >
-            Clone / Save As
-          </button>
-          <button 
-            onClick={onDelete} 
-            style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}
-          >
-            Delete
-          </button>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => onSave(selectedModel, configText)} 
-            disabled={loading}
-            style={{ padding: '0.5rem 2.5rem' }}
-          >
-            {loading ? "Loading..." : "Save Test Plan"}
+          <button onClick={fetchConfig} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>Reload</button>
+          <button onClick={handleSaveAs} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>Clone</button>
+          <button onClick={onDelete} style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '0.5rem 1.5rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>Delete</button>
+          <button className="btn btn-primary" onClick={() => onSave(selectedModel, configText)} disabled={loading} style={{ padding: '0.5rem 2.5rem' }}>
+            {loading ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>
-      <textarea 
-        value={configText}
-        onChange={(e) => setConfigText(e.target.value)}
-        disabled={loading}
-        placeholder={loading ? "Fetching configuration..." : "Enter JSON configuration here..."}
-        style={{ 
-          flex: 1,
-          width: '100%', 
-          background: 'rgba(15, 23, 42, 0.8)', 
-          color: '#e2e8f0', 
-          fontFamily: '"Fira Code", monospace', 
-          fontSize: '0.95rem', 
-          lineHeight: '1.6',
-          padding: '2rem', 
-          borderRadius: '1rem', 
-          border: '1px solid var(--border)',
-          outline: 'none',
-          boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
-          resize: 'none',
-          opacity: loading ? 0.5 : 1
-        }}
-      />
+
+      <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
+        {editorMode === 'source' ? (
+          <textarea 
+            value={configText}
+            onChange={(e) => setConfigText(e.target.value)}
+            disabled={loading}
+            placeholder={loading ? "Fetching configuration..." : "Enter JSON configuration here..."}
+            style={{ 
+              width: '100%', height: '100%', minHeight: '600px',
+              background: 'rgba(15, 23, 42, 0.8)', color: '#e2e8f0', 
+              fontFamily: '"Fira Code", monospace', fontSize: '0.95rem', lineHeight: '1.6',
+              padding: '2rem', borderRadius: '1rem', border: '1px solid var(--border)',
+              outline: 'none', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)', resize: 'none'
+            }}
+          />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Function Test Section */}
+            <section style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '1rem', border: '1px solid var(--border)', padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1rem', color: 'var(--accent)' }}>Function Test Steps</h3>
+                <button 
+                  onClick={() => {
+                    const newSteps = [...functionTests, { name: "New Step", progress: 0 }];
+                    updateConfig({ ...parsed, function_test: newSteps });
+                  }}
+                  style={{ background: 'var(--success)', border: 'none', color: 'white', padding: '0.3rem 0.8rem', borderRadius: '0.4rem', cursor: 'pointer', fontSize: '0.8rem' }}
+                >+ Add Step</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {functionTests.map((step: any, idx: number) => (
+                  <div key={idx} style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800, width: '20px' }}>{idx + 1}</div>
+                    <input 
+                      value={step.name}
+                      onChange={(e) => {
+                        const newSteps = [...functionTests];
+                        newSteps[idx].name = e.target.value;
+                        updateConfig({ ...parsed, function_test: newSteps });
+                      }}
+                      placeholder="Test Item Name"
+                      style={{ flex: 2, background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem 1rem', color: 'white' }}
+                    />
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Progress:</span>
+                      <input 
+                        type="number"
+                        value={step.progress}
+                        onChange={(e) => {
+                          const newSteps = [...functionTests];
+                          newSteps[idx].progress = parseInt(e.target.value);
+                          updateConfig({ ...parsed, function_test: newSteps });
+                        }}
+                        style={{ width: '80px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem', color: 'white' }}
+                      />
+                      <span style={{ fontSize: '0.8rem' }}>%</span>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const newSteps = functionTests.filter((_: any, i: number) => i !== idx);
+                        updateConfig({ ...parsed, function_test: newSteps });
+                      }}
+                      style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0.5rem' }}
+                    >✕</button>
+                  </div>
+                ))}
+                {functionTests.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No test steps defined. Add one to begin.</p>}
+              </div>
+            </section>
+
+            {/* Burn-in Section */}
+            <section style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '1rem', border: '1px solid var(--border)', padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1rem', color: 'var(--accent)', marginBottom: '1.5rem' }}>Burn-in Configuration</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Duration (Hours)</label>
+                  <input 
+                    type="number"
+                    value={burnIn.total_hours || 0}
+                    onChange={(e) => updateConfig({ ...parsed, burn_in: { ...burnIn, total_hours: parseFloat(e.target.value) } })}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.75rem 1rem', color: 'white' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Thermal Threshold (°C)</label>
+                  <input 
+                    type="number"
+                    value={burnIn.thermal_threshold || 0}
+                    onChange={(e) => updateConfig({ ...parsed, burn_in: { ...burnIn, thermal_threshold: parseFloat(e.target.value) } })}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.75rem 1rem', color: 'white' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Report Interval (Seconds)</label>
+                  <input 
+                    type="number"
+                    value={burnIn.report_interval_seconds || 0}
+                    onChange={(e) => updateConfig({ ...parsed, burn_in: { ...burnIn, report_interval_seconds: parseInt(e.target.value) } })}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.75rem 1rem', color: 'white' }}
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
